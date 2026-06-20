@@ -1,14 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Menu } from 'lucide-react';
+import { Menu, Sparkles } from 'lucide-react';
 import { GHOSTS } from './data';
 import { IdentifierTab } from './components/IdentifierTab';
 import { GhostsTab } from './components/GhostsTab';
 import { EquipmentTab } from './components/EquipmentTab';
 import { MechanicsTab } from './components/MechanicsTab';
+import { AIChatTab } from './components/AIChatTab';
 import { auth, signInWithGoogle, logOut } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
-type TabType = 'identifier' | 'ghosts' | 'equipment' | 'mechanics';
+type TabType = 'identifier' | 'ghosts' | 'equipment' | 'mechanics' | 'ai-chat';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('identifier');
@@ -137,6 +138,14 @@ export default function App() {
             >
               Механіки
             </button>
+            <button
+              className={`nav-btn ${activeTab === 'ai-chat' ? 'active' : ''}`}
+              onClick={() => switchTab('ai-chat')}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Sparkles size={16} style={{ color: activeTab === 'ai-chat' ? '#000' : 'var(--accent-purple)' }} />
+              ШІ Асистент
+            </button>
             
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
               {user ? (
@@ -191,6 +200,7 @@ export default function App() {
         {activeTab === 'ghosts' && <GhostsTab />}
         {activeTab === 'equipment' && <EquipmentTab />}
         {activeTab === 'mechanics' && <MechanicsTab />}
+        {activeTab === 'ai-chat' && <AIChatTab />}
       </main>
     </>
   );
