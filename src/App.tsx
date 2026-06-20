@@ -43,6 +43,9 @@ export default function App() {
     try {
       setAuthError(null);
       await logOut();
+      if (activeTab === 'ai-chat') {
+        setActiveTab('identifier');
+      }
     } catch (error) {
       console.error(error);
     }
@@ -200,7 +203,40 @@ export default function App() {
         {activeTab === 'ghosts' && <GhostsTab />}
         {activeTab === 'equipment' && <EquipmentTab />}
         {activeTab === 'mechanics' && <MechanicsTab />}
-        {activeTab === 'ai-chat' && <AIChatTab />}
+        {activeTab === 'ai-chat' && (
+          user ? (
+            <AIChatTab />
+          ) : (
+            <section className="tab-content active" style={{ display: 'flex', justifyContent: 'center', padding: '40px 20px' }}>
+              <div className="card" style={{ textAlign: 'center', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '16px',
+                  backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                  color: 'var(--accent-purple)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '10px'
+                }}>
+                  <Sparkles size={32} />
+                </div>
+                <h2 style={{ marginBottom: 0, justifyContent: 'center' }}>Потрібна авторизація</h2>
+                <p style={{ color: 'var(--text-main)', fontSize: '1.05rem' }}>
+                  ШІ Асистент доступний тільки для зареєстрованих користувачів. Будь ласка, увійдіть за допомогою свого Google акаунта.
+                </p>
+                <button 
+                  className="nav-btn" 
+                  onClick={handleLogin} 
+                  style={{ backgroundColor: 'var(--accent-purple)', color: '#000', marginTop: '10px', fontSize: '1rem', padding: '12px 24px' }}
+                >
+                  Увійти через Google
+                </button>
+              </div>
+            </section>
+          )
+        )}
       </main>
     </>
   );
