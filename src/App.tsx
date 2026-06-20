@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Menu } from 'lucide-react';
 import { GHOSTS } from './data';
 import { IdentifierTab } from './components/IdentifierTab';
 import { GhostsTab } from './components/GhostsTab';
 import { EquipmentTab } from './components/EquipmentTab';
 import { MechanicsTab } from './components/MechanicsTab';
+import { auth, signInWithGoogle, logOut } from './lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 type TabType = 'identifier' | 'ghosts' | 'equipment' | 'mechanics';
 
@@ -13,6 +15,37 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedEvidences, setSelectedEvidences] = useState<string[]>([]);
   const [excludedEvidences, setExcludedEvidences] = useState<string[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogin = async () => {
+    try {
+      setAuthError(null);
+      await signInWithGoogle();
+    } catch (error: any) {
+      if (error.code === 'auth/network-request-failed' || error.message.includes('network')) {
+        setAuthError('Не вдалося виконати вхід. Будь ласка, спробуйте відкрити додаток у новій вкладці (Open in new tab), або вимкніть блокувальники реклами.');
+      } else {
+        setAuthError(error.message || 'Сталася помилка під час входу.');
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      setAuthError(null);
+      await logOut();
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -104,9 +137,45 @@ export default function App() {
             >
               Механіки
             </button>
+            
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+              {user ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <img 
+                    src={user.photoURL || ''} 
+                    alt="avatar" 
+                    style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--card-border)' }} 
+                  />
+                  <button className="nav-btn" onClick={handleLogout}>
+                    Вийти
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  className="nav-btn" 
+                  onClick={handleLogin} 
+                  style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-title)' }}
+                >
+                  Увійти
+                </button>
+              )}
+            </div>
           </nav>
         </div>
       </header>
+
+      {authError && (
+        <div style={{
+          backgroundColor: 'var(--state-excluded-bg)',
+          color: 'var(--state-excluded-text)',
+          padding: '12px 20px',
+          textAlign: 'center',
+          borderBottom: '1px solid var(--state-excluded-border)',
+          fontWeight: 600,
+        }}>
+          {authError}
+        </div>
+      )}
 
       <main>
         {activeTab === 'identifier' && (
