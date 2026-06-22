@@ -228,9 +228,14 @@ export default function App() {
     <>
       <header>
         <div className="header-container">
-          <h1>
-            <span>👻</span> PhasmoWiki Ultimate
-          </h1>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <h1 style={{ marginBottom: 0 }}>
+              <span>👻</span> PhasmoWiki Ultimate
+            </h1>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.6, paddingLeft: '45px', marginTop: '-4px' }}>
+              Автори: Ковальчук Ростислав Ростиславович, Папірник Евеліна Романівна
+            </span>
+          </div>
 
           {/* Гамбургер-меню для мобільних */}
           <button
