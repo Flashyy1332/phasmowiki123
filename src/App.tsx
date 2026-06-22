@@ -42,13 +42,13 @@ export default function App() {
           name: g.name,
           hunt: g.huntThreshold,
           // Спіт якщо це строка (CSV), або використовуємо напряму якщо масив (json)
-          evidence: Array.isArray(g.evidences) ? g.evidences : (typeof g.evidences === 'string' ? g.evidences.split(",").map((s: string) => s.trim()) : g.evidence),
+          evidence: Array.isArray(g.evidences) ? g.evidences : (typeof g.evidences === 'string' ? g.evidences.split(",").map((s: string) => s.trim()) : g.evidence || []),
           desc: g.description || g.desc,
           strength: g.strength,
           weakness: g.weakness,
           test: g.testToVerify || g.test,
         }));
-        setGhosts(mappedGhosts.length > 0 ? mappedGhosts : GHOSTS);
+        setGhosts(mappedGhosts);
 
         const resEq = await fetch("/api/equipment");
         const eqData = await resEq.json();
@@ -59,13 +59,13 @@ export default function App() {
           image: eq.imageName || eq.image,
           desc: eq.description || eq.desc,
         }));
-        setEquipmentList(mappedEq.length > 0 ? mappedEq : EQUIPMENT);
+        setEquipmentList(mappedEq);
         setIsDataLoaded(true);
       } catch (err) {
         console.error("Failed to load data from DB", err);
-        // Fallback
-        setGhosts(GHOSTS);
-        setEquipmentList(EQUIPMENT);
+        // Не використовуємо локальний fallback, якщо підключення немає
+        setGhosts([]);
+        setEquipmentList([]);
         setIsDataLoaded(true);
       }
     }
