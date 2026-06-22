@@ -2,20 +2,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Bot, Send, User } from 'lucide-react';
 
-interface ChatMessage {
+export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
 }
 
-export function AIChatTab() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      text: 'Привіт! Я — ваш персональний ШІ-експерт з Phasmophobia. Я можу допомогти налаштувати ідеальну кастомну складність: збалансувати ризики та нагороди, створити хардкорний челендж або підібрати комфортні умови для новачків. Що вас цікавить?',
-    },
-  ]);
+interface AIChatTabProps {
+  messages: ChatMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+  isActive: boolean;
+}
+
+export function AIChatTab({ messages, setMessages, isActive }: AIChatTabProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -25,8 +24,10 @@ export function AIChatTab() {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
+    if (isActive) {
+      setTimeout(() => scrollToBottom(), 10);
+    }
+  }, [messages, isLoading, isActive]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

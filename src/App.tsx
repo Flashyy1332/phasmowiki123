@@ -5,7 +5,7 @@ import { IdentifierTab } from './components/IdentifierTab';
 import { GhostsTab } from './components/GhostsTab';
 import { EquipmentTab } from './components/EquipmentTab';
 import { MechanicsTab } from './components/MechanicsTab';
-import { AIChatTab } from './components/AIChatTab';
+import { AIChatTab, ChatMessage } from './components/AIChatTab';
 import { auth, signInWithGoogle, logOut } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Ghost, Equipment } from './types';
@@ -23,6 +23,14 @@ export default function App() {
   const [ghosts, setGhosts] = useState<Ghost[]>([]);
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: '1',
+      role: 'assistant',
+      text: 'Привіт! Я — ваш персональний ШІ-експерт з Phasmophobia. Я можу допомогти налаштувати ідеальну кастомну складність: збалансувати ризики та нагороди, створити хардкорний челендж або підібрати комфортні умови для новачків. Що вас цікавить?',
+    },
+  ]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -255,9 +263,9 @@ export default function App() {
             {activeTab === 'ghosts' && <GhostsTab ghosts={ghosts} />}
             {activeTab === 'equipment' && <EquipmentTab equipment={equipmentList} />}
             {activeTab === 'mechanics' && <MechanicsTab />}
-            {activeTab === 'ai-chat' && (
-              user ? (
-                <AIChatTab />
+            <div style={{ display: activeTab === 'ai-chat' ? 'block' : 'none', height: '100%' }}>
+              {user ? (
+                <AIChatTab messages={chatMessages} setMessages={setChatMessages} isActive={activeTab === 'ai-chat'} />
               ) : (
                 <section className="tab-content active" style={{ display: 'flex', justifyContent: 'center', padding: '40px 20px' }}>
                   <div className="card" style={{ textAlign: 'center', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
@@ -287,8 +295,8 @@ export default function App() {
                     </button>
                   </div>
                 </section>
-              )
-            )}
+              )}
+            </div>
           </>
         )}
       </main>

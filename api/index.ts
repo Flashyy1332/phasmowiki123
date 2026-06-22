@@ -5,7 +5,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://mnsqbsxazooykgzmjzug.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_taVUA5h2Gq_GIhs9A_NRrw_5i7S-Ncx';
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || 'sb_secret_7xJyw_T-VFh2VYCar1WD9w_0FM7fsiE';
 
 const app = express();
 app.use(express.json());
@@ -34,12 +34,12 @@ app.get("/api/ghosts", async (req, res) => {
     
     const mappedGhosts = result.map((row: any) => ({
       name: row.Name || row.name,
-      huntThreshold: row.HuntThreshold || row.huntthreshold,
+      huntThreshold: row.HuntThreshold || row.huntthreshold || row.hunt_threshold,
       evidences: row.Evidences || row.evidences,
       description: row.Description || row.description,
       strength: row.Strength || row.strength,
       weakness: row.Weakness || row.weakness,
-      testToVerify: row.TestToVerify || row.testtoverify
+      testToVerify: row.TestToVerify || row.testtoverify || row.test
     }));
     res.json(mappedGhosts);
   } catch (error) {
@@ -64,7 +64,7 @@ app.get("/api/equipment", async (req, res) => {
     const mappedEquipment = result.map((row: any) => ({
       name: row.Name || row.name,
       icon: row.Icon || row.icon,
-      imageName: row.ImageName || row.imagename,
+      imageName: row.ImageName || row.imagename || row.image_url,
       description: row.Description || row.description
     }));
     res.json(mappedEquipment);
@@ -93,7 +93,7 @@ app.post("/api/chat", async (req, res) => {
     });
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents,
       config: {
         systemInstruction:
