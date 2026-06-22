@@ -1,9 +1,11 @@
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
 import * as dotenv from "dotenv";
-import { pool } from "../src/db/index.js";
 
 dotenv.config();
+
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://mnsqbsxazooykgzmjzug.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_taVUA5h2Gq_GIhs9A_NRrw_5i7S-Ncx';
 
 const app = express();
 app.use(express.json());
@@ -19,9 +21,18 @@ const ai = new GoogleGenAI({
 
 app.get("/api/ghosts", async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM ghosts');
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/ghosts?select=*`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Supabase error: ${response.statusText}`);
+    }
+    const result = await response.json();
     
-    const mappedGhosts = result.rows.map((row: any) => ({
+    const mappedGhosts = result.map((row: any) => ({
       name: row.Name || row.name,
       huntThreshold: row.HuntThreshold || row.huntthreshold,
       evidences: row.Evidences || row.evidences,
@@ -39,9 +50,18 @@ app.get("/api/ghosts", async (req, res) => {
 
 app.get("/api/equipment", async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM equipment');
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/equipment?select=*`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Supabase error: ${response.statusText}`);
+    }
+    const result = await response.json();
     
-    const mappedEquipment = result.rows.map((row: any) => ({
+    const mappedEquipment = result.map((row: any) => ({
       name: row.Name || row.name,
       icon: row.Icon || row.icon,
       imageName: row.ImageName || row.imagename,
