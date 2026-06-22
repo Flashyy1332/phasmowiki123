@@ -1,4 +1,4 @@
-import { pool } from "../src/db/index.ts";
+import { pool } from "../src/db/index.js";
 
 export default async function handler(req: any, res: any) {
   try {
@@ -11,8 +11,8 @@ export default async function handler(req: any, res: any) {
       description: row.Description || row.description
     }));
     res.status(200).json(mappedEquipment);
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
-    res.status(500).json({ error: "Failed to fetch equipment" });
+    res.status(500).json({ error: "Failed to fetch equipment", details: error.message || String(error) });
   }
 }
