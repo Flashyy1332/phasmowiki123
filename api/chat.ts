@@ -1,12 +1,4 @@
-import express from "express";
 import { GoogleGenAI } from "@google/genai";
-import * as dotenv from "dotenv";
-import { pool } from "../src/db/index.js";
-
-dotenv.config();
-
-const app = express();
-app.use(express.json());
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -17,46 +9,10 @@ const ai = new GoogleGenAI({
   },
 });
 
-app.get("/api/ghosts", async (req, res) => {
+export default async function handler(req: any, res: any) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
   try {
-    const result = await pool.query('SELECT * FROM ghosts');
-    
-    const mappedGhosts = result.rows.map((row: any) => ({
-      name: row.Name || row.name,
-      huntThreshold: row.HuntThreshold || row.huntthreshold,
-      evidences: row.Evidences || row.evidences,
-      description: row.Description || row.description,
-      strength: row.Strength || row.strength,
-      weakness: row.Weakness || row.weakness,
-      testToVerify: row.TestToVerify || row.testtoverify
-    }));
-    res.json(mappedGhosts);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to fetch ghosts" });
-  }
-});
-
-app.get("/api/equipment", async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM equipment');
-    
-    const mappedEquipment = result.rows.map((row: any) => ({
-      name: row.Name || row.name,
-      icon: row.Icon || row.icon,
-      imageName: row.ImageName || row.imagename,
-      description: row.Description || row.description
-    }));
-    res.json(mappedEquipment);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to fetch equipment" });
-  }
-});
-
-app.post("/api/chat", async (req, res) => {
-  try {
-    const { message, previousMessages } = req.body;
+    const { message, previousMessages } = req.body || {};
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
@@ -81,11 +37,9 @@ app.post("/api/chat", async (req, res) => {
       },
     });
 
-    res.json({ text: response.text });
+    res.status(200).json({ text: response.text });
   } catch (error) {
     console.error("Gemini API Error:", error);
     res.status(500).json({ error: "Failed to process chat message" });
   }
-});
-
-export default app;
+}
