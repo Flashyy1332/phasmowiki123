@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Menu, Sparkles } from 'lucide-react';
+import { Menu, Sparkles, Wand2, Search, Ghost as GhostIcon, Wrench, Settings, LogOut, LogIn, BookOpen } from 'lucide-react';
 import { EVIDENCES, GHOSTS, EQUIPMENT } from './data';
 import { IdentifierTab } from './components/IdentifierTab';
 import { GhostsTab } from './components/GhostsTab';
@@ -232,7 +232,7 @@ export default function App() {
             <h1 style={{ marginBottom: 0 }}>
               <span>👻</span> PhasmoWiki Ultimate
             </h1>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.6, paddingLeft: '45px', marginTop: '-4px' }}>
+            <span className="author-text">
               Автори: Ковальчук Ростислав Ростиславович, Папірник Евеліна Романівна
             </span>
           </div>
@@ -249,66 +249,73 @@ export default function App() {
           <nav id="main-nav" className={isMenuOpen ? 'open' : ''}>
             <div className="nav-capsule">
               <button
-                className={`nav-btn ${activeTab === 'identifier' ? 'active' : ''}`}
+                className={`nav-btn flex-center-gap ${activeTab === 'identifier' ? 'active' : ''}`}
                 onClick={() => switchTab('identifier')}
               >
-                Визначник
+                <Search size={18} />
+                <span className="nav-text">Визначник</span>
               </button>
               <button
-                className={`nav-btn ${activeTab === 'ghosts' ? 'active' : ''}`}
+                className={`nav-btn flex-center-gap ${activeTab === 'ghosts' ? 'active' : ''}`}
                 onClick={() => switchTab('ghosts')}
               >
-                Усі Привиди ({ghosts.length})
+                <GhostIcon size={18} />
+                <span className="nav-text">Всі Привиди ({ghosts.length})</span>
               </button>
               <button
-                className={`nav-btn ${activeTab === 'equipment' ? 'active' : ''}`}
+                className={`nav-btn flex-center-gap ${activeTab === 'equipment' ? 'active' : ''}`}
                 onClick={() => switchTab('equipment')}
               >
-                Спорядження
+                <Wrench size={18} />
+                <span className="nav-text">Спорядження</span>
               </button>
               <button
-                className={`nav-btn ${activeTab === 'mechanics' ? 'active' : ''}`}
+                className={`nav-btn flex-center-gap ${activeTab === 'mechanics' ? 'active' : ''}`}
                 onClick={() => switchTab('mechanics')}
               >
-                Механіки
+                <BookOpen size={18} />
+                <span className="nav-text">Механіки</span>
               </button>
               <button
-                className={`nav-btn ${activeTab === 'ai-chat' ? 'active' : ''}`}
+                className={`nav-btn flex-center-gap ${activeTab === 'ai-chat' ? 'active' : ''}`}
                 onClick={() => switchTab('ai-chat')}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <Sparkles size={16} style={{ color: activeTab === 'ai-chat' ? '#000' : 'var(--accent-purple)' }} />
-                ШІ Асистент
+                <Sparkles size={18} style={{ color: activeTab === 'ai-chat' ? '#000' : 'var(--accent-purple)' }} />
+                <span className="nav-text">Асистент</span>
               </button>
               {isAdmin && (
                 <button
-                  className={`nav-btn ${activeTab === 'admin' ? 'active' : ''}`}
+                  className={`nav-btn flex-center-gap ${activeTab === 'admin' ? 'active' : ''}`}
                   onClick={() => switchTab('admin')}
                 >
-                  Адмін-панель
+                  <Settings size={18} />
+                  <span className="nav-text">Адмін</span>
                 </button>
               )}
             </div>
             
-            <div className="nav-capsule" style={{ marginLeft: 'auto' }}>
+            <div className="nav-capsule user-actions" style={{ marginLeft: 'auto' }}>
               {user ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 5px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 5px' }}>
                   <img 
                     src={user.photoURL || ''} 
                     alt="avatar" 
-                    style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--card-border)' }} 
+                    className="user-avatar"
+                    style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--card-border)' }} 
                   />
-                  <button className="nav-btn" onClick={handleLogout}>
-                    Вийти
+                  <button className="nav-btn p-small" onClick={handleLogout} aria-label="Вийти" title="Вийти">
+                    <LogOut size={16} />
+                    <span className="nav-text">Вийти</span>
                   </button>
                 </div>
               ) : (
                 <button 
-                  className="nav-btn" 
+                  className="nav-btn flex-center-gap" 
                   onClick={handleLogin} 
                   style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-title)' }}
                 >
-                  Увійти
+                  <LogIn size={16} />
+                  <span className="nav-text">Увійти</span>
                 </button>
               )}
             </div>

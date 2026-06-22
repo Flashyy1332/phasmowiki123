@@ -463,50 +463,115 @@ details[open] summary::after {
     gap: 15px;
 }
 
+.author-text {
+    font-size: 0.75rem; 
+    color: var(--text-muted); 
+    opacity: 0.6; 
+    padding-left: 45px; 
+    margin-top: -4px;
+}
+
 /* Адаптивність (Мобільні пристрої) */
 @media (max-width: 768px) {
-    header { padding: 12px 15px; }
-    .header-container { flex-direction: row; justify-content: space-between; align-items: center; }
+    header { 
+        padding: 12px 15px; 
+    }
+
+    .header-container { 
+        flex-direction: row;
+        justify-content: space-between; 
+        align-items: center;
+    }
     
-    /* Показуємо гамбургер-меню */
-    .mobile-menu-btn { display: block; }
-    
-    /* Ховаємо навігацію за замовчуванням */
-    nav { 
+    .mobile-menu-btn { display: block; } /* Show hamburger */
+
+    nav#main-nav {
         display: none; 
         width: 100%; 
         flex-direction: column;
-        gap: 10px;
         margin-top: 15px;
+        animation: fadeIn 0.2s ease forwards;
     }
     
-    /* Клас, який додається через JS для відкриття меню */
-    nav.open {
+    nav#main-nav.open {
         display: flex;
     }
 
     .nav-capsule {
         flex-direction: column;
+        width: 100%;
         background: transparent;
         border: none;
         padding: 0;
-        gap: 10px;
+        gap: 8px;
+        margin: 0;
     }
 
-    .nav-btn { width: 100%; text-align: center; padding: 15px; font-size: 1.05rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--card-border); }
+    .nav-btn {
+        width: 100%;
+        padding: 14px 15px;
+        font-size: 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--card-border);
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        border-radius: 12px;
+        gap: 12px;
+    }
     
-    h1 { font-size: 1.3rem; }
-    h1 span { font-size: 1.8rem; }
+    .nav-btn.active {
+        background-color: var(--accent-purple);
+        color: #020617;
+    }
+    
+    .nav-text {
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .nav-capsule.user-actions {
+        margin-left: 0 !important;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid var(--card-border);
+    }
+
+    .author-text {
+        padding-left: 45px;
+        text-align: left;
+        font-size: 0.65rem;
+        margin-top: -4px;
+        display: block;
+    }
+    
+    h1 { font-size: 1.2rem; }
+    h1 span { font-size: 1.5rem; }
     
     .grid-cards { grid-template-columns: 1fr; gap: 15px; }
     .evidence-container { padding: 15px; margin-bottom: 25px; }
     .evidence-grid { gap: 8px; margin-top: 15px; }
     .evidence-btn { padding: 12px; font-size: 0.85rem; }
     .card { padding: 18px; }
-    h2 { font-size: 1.4rem; margin-bottom: 15px; text-align: center; justify-content: center; }
+    h2 { font-size: 1.3rem; margin-bottom: 15px; text-align: center; justify-content: center; }
     .ghost-tags span { font-size: 0.75rem; padding: 6px 10px; }
     .eq-image { height: 140px; margin-bottom: 10px; }
     .flex-between { flex-direction: column; align-items: stretch; gap: 10px; }
     .reset-btn { width: 100%; padding: 12px; margin-top: 5px; }
     .hunt-threshold { font-size: 0.75rem; padding: 4px 8px; }
+    .nav-capsule.user-actions button {
+        padding: 12px;
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.flex-center-gap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
