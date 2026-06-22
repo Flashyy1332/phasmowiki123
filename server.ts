@@ -1,8 +1,9 @@
 import express from "express";
 import path from "path";
+import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import * as dotenv from "dotenv";
-import { pool } from "./src/db/index.js";
+import { pool } from "./src/db/index.ts";
 
 dotenv.config();
 
@@ -123,7 +124,6 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -137,17 +137,9 @@ async function startServer() {
     });
   }
 
-  if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }
-
-  return app;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
 }
 
-const appPromise = startServer();
-export default async function (req: any, res: any) {
-  const app = await appPromise;
-  app(req, res);
-}
+startServer();

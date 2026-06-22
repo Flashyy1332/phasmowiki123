@@ -19,13 +19,9 @@ const ai = new GoogleGenAI({
 
 app.get("/api/ghosts", async (req, res) => {
   try {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    
     const result = await pool.query('SELECT * FROM ghosts');
     
-    const mappedGhosts = result.rows.map(row => ({
+    const mappedGhosts = result.rows.map((row: any) => ({
       name: row.Name || row.name,
       huntThreshold: row.HuntThreshold || row.huntthreshold,
       evidences: row.Evidences || row.evidences,
@@ -43,13 +39,9 @@ app.get("/api/ghosts", async (req, res) => {
 
 app.get("/api/equipment", async (req, res) => {
   try {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-
     const result = await pool.query('SELECT * FROM equipment');
     
-    const mappedEquipment = result.rows.map(row => ({
+    const mappedEquipment = result.rows.map((row: any) => ({
       name: row.Name || row.name,
       icon: row.Icon || row.icon,
       imageName: row.ImageName || row.imagename,
@@ -67,8 +59,7 @@ app.post("/api/chat", async (req, res) => {
     const { message, previousMessages } = req.body;
 
     if (!message) {
-      res.status(400).json({ error: "Message is required" });
-      return;
+      return res.status(400).json({ error: "Message is required" });
     }
 
     const contents = (previousMessages || []).map((msg: any) => ({
