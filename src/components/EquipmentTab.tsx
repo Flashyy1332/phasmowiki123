@@ -1,7 +1,11 @@
 import React from 'react';
-import { EQUIPMENT } from '../data';
+import { Equipment } from '../types';
 
-export function EquipmentTab() {
+interface Props {
+  equipment: Equipment[];
+}
+
+export function EquipmentTab({ equipment }: Props) {
   return (
     <section id="equipment" className="tab-content active">
       <h2>Ігрове Обладнання та Предмети</h2>
@@ -72,7 +76,7 @@ export function EquipmentTab() {
       </div>
 
       <div className="grid-cards">
-        {EQUIPMENT.map((item) => (
+        {equipment.map((item) => (
           <div
             key={item.name}
             className="card"

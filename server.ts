@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import * as dotenv from "dotenv";
+import { pool } from "./src/db/index.ts";
 
 dotenv.config();
 
@@ -20,6 +21,43 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  app.get("/api/ghosts", async (req, res) => {
+    try {
+      const result = await pool.query('SELECT * FROM ghosts');
+      
+      const mappedGhosts = result.rows.map(row => ({
+        name: row.Name || row.name,
+        huntThreshold: row.HuntThreshold || row.huntthreshold,
+        evidences: row.Evidences || row.evidences,
+        description: row.Description || row.description,
+        strength: row.Strength || row.strength,
+        weakness: row.Weakness || row.weakness,
+        testToVerify: row.TestToVerify || row.testtoverify
+      }));
+      res.json(mappedGhosts);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to fetch ghosts" });
+    }
+  });
+
+  app.get("/api/equipment", async (req, res) => {
+    try {
+      const result = await pool.query('SELECT * FROM equipment');
+      
+      const mappedEquipment = result.rows.map(row => ({
+        name: row.Name || row.name,
+        icon: row.Icon || row.icon,
+        imageName: row.ImageName || row.imagename,
+        description: row.Description || row.description
+      }));
+      res.json(mappedEquipment);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to fetch equipment" });
+    }
+  });
 
   // API route for chat assistant
   app.post("/api/chat", async (req, res) => {

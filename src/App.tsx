@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Menu, Sparkles } from 'lucide-react';
-import { GHOSTS } from './data';
+import { EVIDENCES, GHOSTS, EQUIPMENT } from './data';
 import { IdentifierTab } from './components/IdentifierTab';
 import { GhostsTab } from './components/GhostsTab';
 import { EquipmentTab } from './components/EquipmentTab';
@@ -8,6 +8,7 @@ import { MechanicsTab } from './components/MechanicsTab';
 import { AIChatTab } from './components/AIChatTab';
 import { auth, signInWithGoogle, logOut } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
+import { Ghost, Equipment } from './types';
 
 type TabType = 'identifier' | 'ghosts' | 'equipment' | 'mechanics' | 'ai-chat';
 
@@ -19,11 +20,56 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  const [ghosts, setGhosts] = useState<Ghost[]>([]);
+  const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const resGhosts = await fetch("/api/ghosts");
+        const ghostsData = await resGhosts.json();
+        if (!Array.isArray(ghostsData)) throw new Error("Ghosts not an array - " + JSON.stringify(ghostsData));
+        // Аналізуємо формат даних та мапимо
+        const mappedGhosts: Ghost[] = ghostsData.map((g: any) => ({
+          name: g.name,
+          hunt: g.huntThreshold,
+          // Спіт якщо це строка (CSV), або використовуємо напряму якщо масив (json)
+          evidence: Array.isArray(g.evidences) ? g.evidences : (typeof g.evidences === 'string' ? g.evidences.split(",").map((s: string) => s.trim()) : g.evidence),
+          desc: g.description || g.desc,
+          strength: g.strength,
+          weakness: g.weakness,
+          test: g.testToVerify || g.test,
+        }));
+        setGhosts(mappedGhosts.length > 0 ? mappedGhosts : GHOSTS);
+
+        const resEq = await fetch("/api/equipment");
+        const eqData = await resEq.json();
+        if (!Array.isArray(eqData)) throw new Error("Equipment not an array - " + JSON.stringify(eqData));
+        const mappedEq: Equipment[] = eqData.map((eq: any) => ({
+          name: eq.name,
+          icon: eq.icon,
+          image: eq.imageName || eq.image,
+          desc: eq.description || eq.desc,
+        }));
+        setEquipmentList(mappedEq.length > 0 ? mappedEq : EQUIPMENT);
+        setIsDataLoaded(true);
+      } catch (err) {
+        console.error("Failed to load data from DB", err);
+        // Fallback
+        setGhosts(GHOSTS);
+        setEquipmentList(EQUIPMENT);
+        setIsDataLoaded(true);
+      }
+    }
+    loadData();
   }, []);
 
   const handleLogin = async () => {
@@ -80,7 +126,7 @@ export default function App() {
   };
 
   const possibleGhosts = useMemo(() => {
-    return GHOSTS.filter((ghost) => {
+    return ghosts.filter((ghost) => {
       const hasAllSelected = selectedEvidences.every((e) =>
         ghost.evidence.includes(e)
       );
@@ -89,7 +135,7 @@ export default function App() {
       );
       return hasAllSelected && hasNoExcluded;
     });
-  }, [selectedEvidences, excludedEvidences]);
+  }, [selectedEvidences, excludedEvidences, ghosts]);
 
   const possibleEvidences = useMemo(() => {
     const evidences = new Set<string>();
@@ -190,52 +236,60 @@ export default function App() {
       )}
 
       <main>
-        {activeTab === 'identifier' && (
-          <IdentifierTab
-            selectedEvidences={selectedEvidences}
-            excludedEvidences={excludedEvidences}
-            toggleEvidence={toggleEvidence}
-            resetFilter={resetFilter}
-            possibleGhosts={possibleGhosts}
-            possibleEvidences={possibleEvidences}
-          />
-        )}
-        {activeTab === 'ghosts' && <GhostsTab />}
-        {activeTab === 'equipment' && <EquipmentTab />}
-        {activeTab === 'mechanics' && <MechanicsTab />}
-        {activeTab === 'ai-chat' && (
-          user ? (
-            <AIChatTab />
-          ) : (
-            <section className="tab-content active" style={{ display: 'flex', justifyContent: 'center', padding: '40px 20px' }}>
-              <div className="card" style={{ textAlign: 'center', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-                <div style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '16px',
-                  backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                  color: 'var(--accent-purple)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: '10px'
-                }}>
-                  <Sparkles size={32} />
-                </div>
-                <h2 style={{ marginBottom: 0, justifyContent: 'center' }}>Потрібна авторизація</h2>
-                <p style={{ color: 'var(--text-main)', fontSize: '1.05rem' }}>
-                  ШІ Асистент доступний тільки для зареєстрованих користувачів. Будь ласка, увійдіть за допомогою свого Google акаунта.
-                </p>
-                <button 
-                  className="nav-btn" 
-                  onClick={handleLogin} 
-                  style={{ backgroundColor: 'var(--accent-purple)', color: '#000', marginTop: '10px', fontSize: '1rem', padding: '12px 24px' }}
-                >
-                  Увійти через Google
-                </button>
-              </div>
-            </section>
-          )
+        {!isDataLoaded ? (
+          <div style={{ textAlign: 'center', padding: '50px', color: 'var(--text-muted)' }}>
+            Завантаження даних бази...
+          </div>
+        ) : (
+          <>
+            {activeTab === 'identifier' && (
+              <IdentifierTab
+                selectedEvidences={selectedEvidences}
+                excludedEvidences={excludedEvidences}
+                toggleEvidence={toggleEvidence}
+                resetFilter={resetFilter}
+                possibleGhosts={possibleGhosts}
+                possibleEvidences={possibleEvidences}
+              />
+            )}
+            {activeTab === 'ghosts' && <GhostsTab ghosts={ghosts} />}
+            {activeTab === 'equipment' && <EquipmentTab equipment={equipmentList} />}
+            {activeTab === 'mechanics' && <MechanicsTab />}
+            {activeTab === 'ai-chat' && (
+              user ? (
+                <AIChatTab />
+              ) : (
+                <section className="tab-content active" style={{ display: 'flex', justifyContent: 'center', padding: '40px 20px' }}>
+                  <div className="card" style={{ textAlign: 'center', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+                    <div style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '16px',
+                      backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                      color: 'var(--accent-purple)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '10px'
+                    }}>
+                      <Sparkles size={32} />
+                    </div>
+                    <h2 style={{ marginBottom: 0, justifyContent: 'center' }}>Потрібна авторизація</h2>
+                    <p style={{ color: 'var(--text-main)', fontSize: '1.05rem' }}>
+                      ШІ Асистент доступний тільки для зареєстрованих користувачів. Будь ласка, увійдіть за допомогою свого Google акаунта.
+                    </p>
+                    <button 
+                      className="nav-btn" 
+                      onClick={handleLogin} 
+                      style={{ backgroundColor: 'var(--accent-purple)', color: '#000', marginTop: '10px', fontSize: '1rem', padding: '12px 24px' }}
+                    >
+                      Увійти через Google
+                    </button>
+                  </div>
+                </section>
+              )
+            )}
+          </>
         )}
       </main>
     </>

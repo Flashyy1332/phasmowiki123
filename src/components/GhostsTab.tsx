@@ -1,12 +1,16 @@
 import React from 'react';
-import { GHOSTS } from '../data';
+import { Ghost } from '../types';
 
-export function GhostsTab() {
+interface Props {
+  ghosts: Ghost[];
+}
+
+export function GhostsTab({ ghosts }: Props) {
   return (
     <section id="ghosts" className="tab-content active">
-      <h2>Детальний довідник ({GHOSTS.length} привидів)</h2>
+      <h2>Детальний довідник ({ghosts.length} привидів)</h2>
       <div className="grid-cards">
-        {GHOSTS.map((ghost) => {
+        {ghosts.map((ghost) => {
           return (
             <div key={ghost.name} className="card">
               <h3>
