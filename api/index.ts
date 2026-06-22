@@ -10,6 +10,208 @@ const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || 'sb_secret_7xJyw_T-VFh2V
 const app = express();
 app.use(express.json());
 
+async function checkIsAdmin(email: string) {
+  if (!email) return false;
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/admins?select=email&email=eq.${encodeURIComponent(email)}`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
+    });
+    if (!response.ok) return false;
+    const result = await response.json();
+    if (result.code === 'PGRST205') return false;
+    return result.length > 0;
+  } catch (e) {
+    return false;
+  }
+}
+
+app.get("/api/is-admin", async (req, res) => {
+  const email = req.query.email as string;
+  const isAdmin = await checkIsAdmin(email);
+  res.json({ isAdmin });
+});
+
+app.post("/api/ghosts", async (req, res) => {
+  try {
+    const { adminEmail, ghost } = req.body;
+    const isAdmin = await checkIsAdmin(adminEmail);
+    if (!isAdmin) return res.status(403).json({ error: "Forbidden" });
+
+    const insertData = {
+      name: ghost.name,
+      hunt_threshold: ghost.huntThreshold,
+      evidences: ghost.evidences,
+      description: ghost.description,
+      strength: ghost.strength,
+      weakness: ghost.weakness,
+      test: ghost.testToVerify
+    };
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/ghosts`, {
+      method: "POST",
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(insertData)
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/ghosts/:name", async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { adminEmail, ghost } = req.body;
+    const isAdmin = await checkIsAdmin(adminEmail);
+    if (!isAdmin) return res.status(403).json({ error: "Forbidden" });
+
+    const updateData = {
+      name: ghost.name,
+      hunt_threshold: ghost.huntThreshold,
+      evidences: ghost.evidences,
+      description: ghost.description,
+      strength: ghost.strength,
+      weakness: ghost.weakness,
+      test: ghost.testToVerify
+    };
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/ghosts?name=eq.${encodeURIComponent(name)}`, {
+      method: "PATCH",
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(updateData)
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/ghosts/:name", async (req, res) => {
+  try {
+    const { name } = req.params;
+    const adminEmail = req.query.adminEmail as string;
+    const isAdmin = await checkIsAdmin(adminEmail);
+    if (!isAdmin) return res.status(403).json({ error: "Forbidden" });
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/ghosts?name=eq.${encodeURIComponent(name)}`, {
+      method: "DELETE",
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=minimal'
+      }
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/equipment", async (req, res) => {
+  try {
+    const { adminEmail, equipment } = req.body;
+    const isAdmin = await checkIsAdmin(adminEmail);
+    if (!isAdmin) return res.status(403).json({ error: "Forbidden" });
+
+    const insertData = {
+      name: equipment.name,
+      icon: equipment.icon,
+      image_url: equipment.imageName,
+      description: equipment.description
+    };
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/equipment`, {
+      method: "POST",
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(insertData)
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/equipment/:name", async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { adminEmail, equipment } = req.body;
+    const isAdmin = await checkIsAdmin(adminEmail);
+    if (!isAdmin) return res.status(403).json({ error: "Forbidden" });
+
+    const updateData = {
+      name: equipment.name,
+      icon: equipment.icon,
+      image_url: equipment.imageName,
+      description: equipment.description
+    };
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/equipment?name=eq.${encodeURIComponent(name)}`, {
+      method: "PATCH",
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(updateData)
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/equipment/:name", async (req, res) => {
+  try {
+    const { name } = req.params;
+    const adminEmail = req.query.adminEmail as string;
+    const isAdmin = await checkIsAdmin(adminEmail);
+    if (!isAdmin) return res.status(403).json({ error: "Forbidden" });
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/equipment?name=eq.${encodeURIComponent(name)}`, {
+      method: "DELETE",
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=minimal'
+      }
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
   httpOptions: {

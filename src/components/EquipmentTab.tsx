@@ -3,9 +3,12 @@ import { Equipment } from '../types';
 
 interface Props {
   equipment: Equipment[];
+  isAdmin?: boolean;
+  onEdit?: (equipment: Equipment) => void;
+  onDelete?: (name: string) => void;
 }
 
-export function EquipmentTab({ equipment }: Props) {
+export function EquipmentTab({ equipment, isAdmin, onEdit, onDelete }: Props) {
   return (
     <section id="equipment" className="tab-content active">
       <h2>Ігрове Обладнання та Предмети</h2>
@@ -120,6 +123,12 @@ export function EquipmentTab({ equipment }: Props) {
               }}
               dangerouslySetInnerHTML={{ __html: item.desc }}
             />
+            {isAdmin && (
+              <div style={{ display: 'flex', gap: '10px', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--card-border)' }}>
+                <button onClick={() => { if (onEdit) onEdit(item); }} className="nav-btn" style={{ flex: 1, backgroundColor: 'var(--accent-purple)', color: '#000', fontSize: '0.9em', padding: '6px' }}>Редагувати</button>
+                <button onClick={() => { if (onDelete) onDelete(item.name); }} className="nav-btn" style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', fontSize: '0.9em', padding: '6px' }}>Видалити</button>
+              </div>
+            )}
           </div>
         ))}
       </div>

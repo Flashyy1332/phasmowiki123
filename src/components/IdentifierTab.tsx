@@ -9,6 +9,9 @@ interface Props {
   resetFilter: () => void;
   possibleGhosts: Ghost[];
   possibleEvidences: Set<string>;
+  isAdmin: boolean;
+  onEdit: (ghost: Ghost) => void;
+  onDelete: (name: string) => void;
 }
 
 export function IdentifierTab({
@@ -18,6 +21,9 @@ export function IdentifierTab({
   resetFilter,
   possibleGhosts,
   possibleEvidences,
+  isAdmin,
+  onEdit,
+  onDelete
 }: Props) {
   return (
     <section id="identifier" className="tab-content active">
@@ -129,6 +135,13 @@ export function IdentifierTab({
                   <summary>Як перевірити на 100%?</summary>
                   <div className="test-content">{ghost.test}</div>
                 </details>
+                
+                {isAdmin && (
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--card-border)' }}>
+                    <button onClick={() => onEdit(ghost)} className="nav-btn" style={{ flex: 1, backgroundColor: 'var(--accent-purple)', color: '#000', fontSize: '0.9em', padding: '6px' }}>Редагувати</button>
+                    <button onClick={() => onDelete(ghost.name)} className="nav-btn" style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', fontSize: '0.9em', padding: '6px' }}>Видалити</button>
+                  </div>
+                )}
               </div>
             );
           })

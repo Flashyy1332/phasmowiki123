@@ -6,11 +6,12 @@ import { GhostsTab } from './components/GhostsTab';
 import { EquipmentTab } from './components/EquipmentTab';
 import { MechanicsTab } from './components/MechanicsTab';
 import { AIChatTab, ChatMessage } from './components/AIChatTab';
+import { AdminTab } from './components/AdminTab';
 import { auth, signInWithGoogle, logOut } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Ghost, Equipment } from './types';
 
-type TabType = 'identifier' | 'ghosts' | 'equipment' | 'mechanics' | 'ai-chat';
+type TabType = 'identifier' | 'ghosts' | 'equipment' | 'mechanics' | 'ai-chat' | 'admin';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('identifier');
@@ -19,6 +20,8 @@ export default function App() {
   const [excludedEvidences, setExcludedEvidences] = useState<string[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [ghostToDelete, setGhostToDelete] = useState<string | null>(null);
 
   const [ghosts, setGhosts] = useState<Ghost[]>([]);
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
@@ -35,50 +38,118 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (currentUser?.email) {
+        fetch(`/api/is-admin?email=${encodeURIComponent(currentUser.email)}`)
+          .then(res => res.json())
+          .then(data => setIsAdmin(data.isAdmin))
+          .catch(err => console.error("Error checking admin status", err));
+      } else {
+        setIsAdmin(false);
+      }
     });
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const resGhosts = await fetch("/api/ghosts");
-        const ghostsData = await resGhosts.json();
-        if (!Array.isArray(ghostsData)) throw new Error("Ghosts not an array - " + JSON.stringify(ghostsData));
-        // Аналізуємо формат даних та мапимо
-        const mappedGhosts: Ghost[] = ghostsData.map((g: any) => ({
-          name: g.name,
-          hunt: g.huntThreshold,
-          // Спіт якщо це строка (CSV), або використовуємо напряму якщо масив (json)
-          evidence: Array.isArray(g.evidences) ? g.evidences : (typeof g.evidences === 'string' ? g.evidences.split(",").map((s: string) => s.trim()) : g.evidence || []),
-          desc: g.description || g.desc,
-          strength: g.strength,
-          weakness: g.weakness,
-          test: g.testToVerify || g.test,
-        }));
-        setGhosts(mappedGhosts);
+  const [editingGhost, setEditingGhost] = useState<Ghost | null>(null);
+  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
+  const [equipmentToDelete, setEquipmentToDelete] = useState<string | null>(null);
 
-        const resEq = await fetch("/api/equipment");
-        const eqData = await resEq.json();
-        if (!Array.isArray(eqData)) throw new Error("Equipment not an array - " + JSON.stringify(eqData));
-        const mappedEq: Equipment[] = eqData.map((eq: any) => ({
-          name: eq.name,
-          icon: eq.icon,
-          image: eq.imageName || eq.image,
-          desc: eq.description || eq.desc,
-        }));
-        setEquipmentList(mappedEq);
-        setIsDataLoaded(true);
-      } catch (err) {
-        console.error("Failed to load data from DB", err);
-        // Не використовуємо локальний fallback, якщо підключення немає
-        setGhosts([]);
-        setEquipmentList([]);
-        setIsDataLoaded(true);
-      }
+  const fetchData = async () => {
+    try {
+      const resGhosts = await fetch("/api/ghosts");
+      const ghostsData = await resGhosts.json();
+      if (!Array.isArray(ghostsData)) throw new Error("Ghosts not an array - " + JSON.stringify(ghostsData));
+      const mappedGhosts: Ghost[] = ghostsData.map((g: any) => ({
+        name: g.name,
+        hunt: g.huntThreshold,
+        evidence: Array.isArray(g.evidences) ? g.evidences : (typeof g.evidences === 'string' ? g.evidences.split(",").map((s: string) => s.trim()) : g.evidence || []),
+        desc: g.description || g.desc,
+        strength: g.strength,
+        weakness: g.weakness,
+        test: g.testToVerify || g.test,
+      }));
+      setGhosts(mappedGhosts);
+
+      const resEq = await fetch("/api/equipment");
+      const eqData = await resEq.json();
+      if (!Array.isArray(eqData)) throw new Error("Equipment not an array - " + JSON.stringify(eqData));
+      const mappedEq: Equipment[] = eqData.map((eq: any) => ({
+        name: eq.name,
+        icon: eq.icon,
+        image: eq.imageName || eq.image,
+        desc: eq.description || eq.desc,
+      }));
+      setEquipmentList(mappedEq);
+    } catch (err) {
+      console.error("Failed to load data from DB", err);
+      setGhosts([]);
+      setEquipmentList([]);
+    } finally {
+      setIsDataLoaded(true);
     }
-    loadData();
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
+
+  const handleDeleteGhost = (name: string) => {
+    if (!user?.email || !isAdmin) return;
+    setGhostToDelete(name);
+  };
+
+  const confirmDeleteGhost = async () => {
+    if (!user?.email || !isAdmin || !ghostToDelete) return;
+    try {
+      const res = await fetch(`/api/ghosts/${encodeURIComponent(ghostToDelete)}?adminEmail=${encodeURIComponent(user.email)}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        fetchData(); // Оновлюємо список
+        setGhostToDelete(null);
+      } else {
+        console.error('Помилка видалення');
+        setGhostToDelete(null);
+      }
+    } catch (e) {
+      console.error(e);
+      setGhostToDelete(null);
+    }
+  };
+
+  const handleEditGhost = (ghost: Ghost) => {
+    setEditingGhost(ghost);
+    switchTab('admin');
+  };
+
+  const handleDeleteEquipment = (name: string) => {
+    if (!user?.email || !isAdmin) return;
+    setEquipmentToDelete(name);
+  };
+
+  const confirmDeleteEquipment = async () => {
+    if (!user?.email || !isAdmin || !equipmentToDelete) return;
+    try {
+      const res = await fetch(`/api/equipment/${encodeURIComponent(equipmentToDelete)}?adminEmail=${encodeURIComponent(user.email)}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        fetchData();
+        setEquipmentToDelete(null);
+      } else {
+        console.error('Помилка видалення');
+        setEquipmentToDelete(null);
+      }
+    } catch (e) {
+      console.error(e);
+      setEquipmentToDelete(null);
+    }
+  };
+
+  const handleEditEquipment = (equipment: Equipment) => {
+    setEditingEquipment(equipment);
+    switchTab('admin');
+  };
 
   const handleLogin = async () => {
     try {
@@ -171,42 +242,52 @@ export default function App() {
           </button>
 
           <nav id="main-nav" className={isMenuOpen ? 'open' : ''}>
-            <button
-              className={`nav-btn ${activeTab === 'identifier' ? 'active' : ''}`}
-              onClick={() => switchTab('identifier')}
-            >
-              Визначник
-            </button>
-            <button
-              className={`nav-btn ${activeTab === 'ghosts' ? 'active' : ''}`}
-              onClick={() => switchTab('ghosts')}
-            >
-              Усі Привиди (27)
-            </button>
-            <button
-              className={`nav-btn ${activeTab === 'equipment' ? 'active' : ''}`}
-              onClick={() => switchTab('equipment')}
-            >
-              Спорядження
-            </button>
-            <button
-              className={`nav-btn ${activeTab === 'mechanics' ? 'active' : ''}`}
-              onClick={() => switchTab('mechanics')}
-            >
-              Механіки
-            </button>
-            <button
-              className={`nav-btn ${activeTab === 'ai-chat' ? 'active' : ''}`}
-              onClick={() => switchTab('ai-chat')}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Sparkles size={16} style={{ color: activeTab === 'ai-chat' ? '#000' : 'var(--accent-purple)' }} />
-              ШІ Асистент
-            </button>
+            <div className="nav-capsule">
+              <button
+                className={`nav-btn ${activeTab === 'identifier' ? 'active' : ''}`}
+                onClick={() => switchTab('identifier')}
+              >
+                Визначник
+              </button>
+              <button
+                className={`nav-btn ${activeTab === 'ghosts' ? 'active' : ''}`}
+                onClick={() => switchTab('ghosts')}
+              >
+                Усі Привиди ({ghosts.length})
+              </button>
+              <button
+                className={`nav-btn ${activeTab === 'equipment' ? 'active' : ''}`}
+                onClick={() => switchTab('equipment')}
+              >
+                Спорядження
+              </button>
+              <button
+                className={`nav-btn ${activeTab === 'mechanics' ? 'active' : ''}`}
+                onClick={() => switchTab('mechanics')}
+              >
+                Механіки
+              </button>
+              <button
+                className={`nav-btn ${activeTab === 'ai-chat' ? 'active' : ''}`}
+                onClick={() => switchTab('ai-chat')}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Sparkles size={16} style={{ color: activeTab === 'ai-chat' ? '#000' : 'var(--accent-purple)' }} />
+                ШІ Асистент
+              </button>
+              {isAdmin && (
+                <button
+                  className={`nav-btn ${activeTab === 'admin' ? 'active' : ''}`}
+                  onClick={() => switchTab('admin')}
+                >
+                  Адмін-панель
+                </button>
+              )}
+            </div>
             
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+            <div className="nav-capsule" style={{ marginLeft: 'auto' }}>
               {user ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 5px' }}>
                   <img 
                     src={user.photoURL || ''} 
                     alt="avatar" 
@@ -258,11 +339,15 @@ export default function App() {
                 resetFilter={resetFilter}
                 possibleGhosts={possibleGhosts}
                 possibleEvidences={possibleEvidences}
+                isAdmin={isAdmin}
+                onDelete={handleDeleteGhost}
+                onEdit={handleEditGhost}
               />
             )}
-            {activeTab === 'ghosts' && <GhostsTab ghosts={ghosts} />}
-            {activeTab === 'equipment' && <EquipmentTab equipment={equipmentList} />}
+            {activeTab === 'ghosts' && <GhostsTab ghosts={ghosts} isAdmin={isAdmin} onDelete={handleDeleteGhost} onEdit={handleEditGhost} />}
+            {activeTab === 'equipment' && <EquipmentTab equipment={equipmentList} isAdmin={isAdmin} onDelete={handleDeleteEquipment} onEdit={handleEditEquipment} />}
             {activeTab === 'mechanics' && <MechanicsTab />}
+            {activeTab === 'admin' && isAdmin && user?.email && <AdminTab userEmail={user.email} editingGhost={editingGhost} setEditingGhost={setEditingGhost} editingEquipment={editingEquipment} setEditingEquipment={setEditingEquipment} onRefresh={fetchData} />}
             <div style={{ display: activeTab === 'ai-chat' ? 'block' : 'none', height: '100%' }}>
               {user ? (
                 <AIChatTab messages={chatMessages} setMessages={setChatMessages} isActive={activeTab === 'ai-chat'} />
@@ -300,6 +385,64 @@ export default function App() {
           </>
         )}
       </main>
+
+      {ghostToDelete && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="card" style={{ maxWidth: '400px', width: '90%', textAlign: 'center', margin: '20px' }}>
+            <h3 style={{ marginTop: 0 }}>Підтвердження видалення</h3>
+            <p>Ви дійсно хочете видалити привида <strong>{ghostToDelete}</strong>?</p>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button 
+                onClick={() => setGhostToDelete(null)}
+                style={{ flex: 1, padding: '10px', backgroundColor: 'var(--card-border)', color: 'var(--text-title)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Скасувати
+              </button>
+              <button 
+                onClick={confirmDeleteGhost}
+                style={{ flex: 1, padding: '10px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Видалити
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {equipmentToDelete && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="card" style={{ maxWidth: '400px', width: '90%', textAlign: 'center', margin: '20px' }}>
+            <h3 style={{ marginTop: 0 }}>Підтвердження видалення</h3>
+            <p>Ви дійсно хочете видалити спорядження <strong>{equipmentToDelete}</strong>?</p>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button 
+                onClick={() => setEquipmentToDelete(null)}
+                style={{ flex: 1, padding: '10px', backgroundColor: 'var(--card-border)', color: 'var(--text-title)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Скасувати
+              </button>
+              <button 
+                onClick={confirmDeleteEquipment}
+                style={{ flex: 1, padding: '10px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Видалити
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

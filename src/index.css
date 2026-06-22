@@ -127,6 +127,14 @@ h1 span {
 /* Навігація */
 nav {
     display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    flex-grow: 1;
+    align-items: center;
+}
+
+.nav-capsule {
+    display: flex;
     gap: 8px;
     flex-wrap: wrap;
     background: rgba(255, 255, 255, 0.03);
@@ -470,14 +478,19 @@ details[open] summary::after {
         flex-direction: column;
         gap: 10px;
         margin-top: 15px;
-        padding: 10px;
-        border: none;
-        background: transparent;
     }
     
     /* Клас, який додається через JS для відкриття меню */
     nav.open {
         display: flex;
+    }
+
+    .nav-capsule {
+        flex-direction: column;
+        background: transparent;
+        border: none;
+        padding: 0;
+        gap: 10px;
     }
 
     .nav-btn { width: 100%; text-align: center; padding: 15px; font-size: 1.05rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--card-border); }
