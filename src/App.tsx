@@ -74,12 +74,15 @@ export default function App() {
       const resEq = await fetch("/api/equipment");
       const eqData = await resEq.json();
       if (!Array.isArray(eqData)) throw new Error("Equipment not an array - " + JSON.stringify(eqData));
-      const mappedEq: Equipment[] = eqData.map((eq: any) => ({
-        name: eq.name,
-        icon: eq.icon,
-        image: eq.imageName || eq.image,
-        desc: eq.description || eq.desc,
-      }));
+      const mappedEq: Equipment[] = eqData.map((eq: any) => {
+        const imgName = eq.imageName || eq.image;
+        return {
+          name: eq.name,
+          icon: eq.icon,
+          image: imgName ? `/items/${imgName}` : '',
+          desc: eq.description || eq.desc,
+        };
+      });
       setEquipmentList(mappedEq);
     } catch (err) {
       console.error("Failed to load data from DB", err);
