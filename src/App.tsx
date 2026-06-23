@@ -11,7 +11,7 @@ import { auth, signInWithGoogle, logOut } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Ghost, Equipment } from './types';
 
-type TabType = 'identifier' | 'ghosts' | 'equipment' | 'mechanics' | 'ai-chat' | 'admin';
+type TabType = 'identifier' | 'ghosts' | 'equipment' | 'mechanics' | 'admin';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('identifier');
@@ -53,6 +53,7 @@ export default function App() {
   const [editingGhost, setEditingGhost] = useState<Ghost | null>(null);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
   const [equipmentToDelete, setEquipmentToDelete] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -117,9 +118,19 @@ export default function App() {
     }
   };
 
+  const switchTab = (tab: TabType, clearEdits: boolean = true) => {
+    setActiveTab(tab);
+    if (clearEdits) {
+      setEditingGhost(null);
+      setEditingEquipment(null);
+    }
+    setIsMenuOpen(false);
+  };
+
   const handleEditGhost = (ghost: Ghost) => {
     setEditingGhost(ghost);
-    switchTab('admin');
+    setEditingEquipment(null);
+    switchTab('admin', false);
   };
 
   const handleDeleteEquipment = (name: string) => {
@@ -148,7 +159,8 @@ export default function App() {
 
   const handleEditEquipment = (equipment: Equipment) => {
     setEditingEquipment(equipment);
-    switchTab('admin');
+    setEditingGhost(null);
+    switchTab('admin', false);
   };
 
   const handleLogin = async () => {
@@ -168,9 +180,7 @@ export default function App() {
     try {
       setAuthError(null);
       await logOut();
-      if (activeTab === 'ai-chat') {
-        setActiveTab('identifier');
-      }
+      setIsChatOpen(false);
     } catch (error) {
       console.error(error);
     }
@@ -178,8 +188,9 @@ export default function App() {
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
-  const switchTab = (tab: TabType) => {
-    setActiveTab(tab);
+
+  const toggleChat = () => {
+    setIsChatOpen(!isChatOpen);
     setIsMenuOpen(false);
   };
 
@@ -277,11 +288,11 @@ export default function App() {
                 <span className="nav-text">Механіки</span>
               </button>
               <button
-                className={`nav-btn flex-center-gap ${activeTab === 'ai-chat' ? 'active' : ''}`}
-                onClick={() => switchTab('ai-chat')}
+                className={`nav-btn flex-center-gap ${isChatOpen ? 'active' : ''}`}
+                onClick={toggleChat}
               >
-                <Sparkles size={18} style={{ color: activeTab === 'ai-chat' ? '#000' : 'var(--accent-purple)' }} />
-                <span className="nav-text">Асистент</span>
+                <Sparkles size={18} style={{ color: isChatOpen ? '#000' : 'var(--accent-purple)' }} />
+                <span className="nav-text">ШІ Асистент</span>
               </button>
               {isAdmin && (
                 <button
@@ -360,12 +371,25 @@ export default function App() {
             {activeTab === 'equipment' && <EquipmentTab equipment={equipmentList} isAdmin={isAdmin} onDelete={handleDeleteEquipment} onEdit={handleEditEquipment} />}
             {activeTab === 'mechanics' && <MechanicsTab />}
             {activeTab === 'admin' && isAdmin && user?.email && <AdminTab userEmail={user.email} editingGhost={editingGhost} setEditingGhost={setEditingGhost} editingEquipment={editingEquipment} setEditingEquipment={setEditingEquipment} onRefresh={fetchData} />}
-            <div style={{ display: activeTab === 'ai-chat' ? 'block' : 'none', height: '100%' }}>
-              {user ? (
-                <AIChatTab messages={chatMessages} setMessages={setChatMessages} isActive={activeTab === 'ai-chat'} />
-              ) : (
-                <section className="tab-content active" style={{ display: 'flex', justifyContent: 'center', padding: '40px 20px' }}>
-                  <div className="card" style={{ textAlign: 'center', maxWidth: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+            
+            {/* ШІ Асистент - Floating widget */}
+            {isChatOpen && (
+              <div className="ai-chat-widget">
+                {user ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderBottom: '1px solid var(--card-border)', backgroundColor: 'transparent' }}>
+                      <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Sparkles size={18} color="var(--accent-purple)" /> ШІ Асистент
+                      </h3>
+                      <button onClick={() => setIsChatOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', outline: 'none' }}>✕</button>
+                    </div>
+                    <div style={{ flexGrow: 1, overflow: 'hidden' }}>
+                      <AIChatTab messages={chatMessages} setMessages={setChatMessages} isActive={isChatOpen} />
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ padding: '30px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '15px' }}>
+                    <button onClick={() => setIsChatOpen(false)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', outline: 'none' }}>✕</button>
                     <div style={{
                       width: '64px',
                       height: '64px',
@@ -379,21 +403,21 @@ export default function App() {
                     }}>
                       <Sparkles size={32} />
                     </div>
-                    <h2 style={{ marginBottom: 0, justifyContent: 'center' }}>Потрібна авторизація</h2>
-                    <p style={{ color: 'var(--text-main)', fontSize: '1.05rem' }}>
-                      ШІ Асистент доступний тільки для зареєстрованих користувачів. Будь ласка, увійдіть за допомогою свого Google акаунта.
+                    <h3 style={{ margin: 0 }}>Потрібна авторизація</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>
+                      ШІ Асистент доступний тільки для зареєстрованих користувачів.
                     </p>
                     <button 
                       className="nav-btn" 
                       onClick={handleLogin} 
-                      style={{ backgroundColor: 'var(--accent-purple)', color: '#000', marginTop: '10px', fontSize: '1rem', padding: '12px 24px' }}
+                      style={{ backgroundColor: 'var(--accent-purple)', color: '#000', marginTop: '15px', width: '100%', justifyContent: 'center' }}
                     >
                       Увійти через Google
                     </button>
                   </div>
-                </section>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </main>

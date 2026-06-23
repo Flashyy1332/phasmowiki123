@@ -164,13 +164,13 @@ export function AdminTab({ userEmail, editingGhost, setEditingGhost, editingEqui
         <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', marginTop: '15px' }}>
           <button 
             className={`nav-btn ${activeSubTab === 'ghost' ? 'active' : ''}`}
-            onClick={() => { setActiveSubTab('ghost'); setMessage(''); }}
+            onClick={() => { setActiveSubTab('ghost'); setMessage(''); cancelEquipmentEdit(); }}
           >
             Додати Привида
           </button>
           <button 
             className={`nav-btn ${activeSubTab === 'equipment' ? 'active' : ''}`}
-            onClick={() => { setActiveSubTab('equipment'); setMessage(''); }}
+            onClick={() => { setActiveSubTab('equipment'); setMessage(''); cancelEdit(); }}
           >
             Додати Спорядження
           </button>
@@ -191,7 +191,7 @@ export function AdminTab({ userEmail, editingGhost, setEditingGhost, editingEqui
             )}
             <div>
               <label style={{ display: 'block', marginBottom: '5px' }}>Назва привида</label>
-              <input type="text" value={ghostName} onChange={(e) => setGhostName(e.target.value)} required disabled={!!editingGhost} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)', opacity: editingGhost ? 0.7 : 1 }} />
+              <input type="text" value={ghostName} onChange={(e) => setGhostName(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '5px' }}>Поріг атаки (Hunt Threshold)</label>
@@ -240,7 +240,7 @@ export function AdminTab({ userEmail, editingGhost, setEditingGhost, editingEqui
             )}
             <div>
               <label style={{ display: 'block', marginBottom: '5px' }}>Назва спорядження</label>
-              <input type="text" value={eqName} onChange={(e) => setEqName(e.target.value)} required disabled={!!editingEquipment} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)', opacity: editingEquipment ? 0.7 : 1 }} />
+              <input type="text" value={eqName} onChange={(e) => setEqName(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '5px' }}>Іконка (Емодзі)</label>

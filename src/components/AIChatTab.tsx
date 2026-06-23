@@ -56,6 +56,9 @@ export function AIChatTab({ messages, setMessages, isActive }: AIChatTabProps) {
       });
 
       if (!response.ok) {
+        if (response.status === 503) {
+          throw new Error('Модель перевантажена');
+        }
         throw new Error('Помилка сервера');
       }
 
@@ -69,14 +72,15 @@ export function AIChatTab({ messages, setMessages, isActive }: AIChatTabProps) {
           text: data.text,
         },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      const isOverloaded = error.message.includes('перевантажена') || (error.message && error.message.includes('503'));
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          text: 'Вибачте, сталася помилка під час спроби отримати відповідь. Будь ласка, спробуйте ще раз.',
+          text: isOverloaded ? 'Сервери тимчасово перевантажені через велику кількість запитів. Будь ласка, зачекайте хвилинку і спробуйте ще раз.' : 'Вибачте, сталася помилка під час отримання відповіді від ШІ. Будь ласка, спробуйте ще раз.',
         },
       ]);
     } finally {
@@ -85,10 +89,8 @@ export function AIChatTab({ messages, setMessages, isActive }: AIChatTabProps) {
   };
 
   return (
-    <section id="ai-chat" className="tab-content active" style={{ height: 'calc(100vh - 160px)', display: 'flex', flexDirection: 'column' }}>
-      <h2 style={{ marginBottom: '15px' }}>ШІ Асистент - Кастомна Складність</h2>
-      
-      <div className="card" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'transparent' }}>
+      <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ flexGrow: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {messages.map((msg) => (
             <div
@@ -121,9 +123,10 @@ export function AIChatTab({ messages, setMessages, isActive }: AIChatTabProps) {
                   maxWidth: '80%',
                   padding: '12px 16px',
                   borderRadius: '16px',
-                  backgroundColor: msg.role === 'user' ? 'rgba(255,255,255,0.05)' : 'rgba(56, 189, 248, 0.05)',
+                  backgroundColor: msg.role === 'user' ? 'rgba(255,255,255,0.08)' : 'rgba(56, 189, 248, 0.08)',
                   border: `1px solid ${msg.role === 'user' ? 'var(--card-border)' : 'rgba(56, 189, 248, 0.2)'}`,
-                  color: 'var(--text-main)',
+                  color: 'var(--text-title)',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.8)',
                   borderTopRightRadius: msg.role === 'user' ? 4 : 16,
                   borderTopLeftRadius: msg.role === 'assistant' ? 4 : 16,
                 }}
@@ -197,6 +200,6 @@ export function AIChatTab({ messages, setMessages, isActive }: AIChatTabProps) {
           </button>
         </form>
       </div>
-    </section>
+    </div>
   );
 }
