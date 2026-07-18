@@ -61,15 +61,24 @@ async function startServer() {
       }
       const result = await response.json();
       
-      const mappedGhosts = result.map((row: any) => ({
-        name: row.Name || row.name,
-        huntThreshold: row.HuntThreshold || row.huntthreshold || row.hunt_threshold,
-        evidences: row.Evidences || row.evidences,
-        description: row.Description || row.description,
-        strength: row.Strength || row.strength,
-        weakness: row.Weakness || row.weakness,
-        testToVerify: row.TestToVerify || row.testtoverify || row.test
-      }));
+      const mappedGhosts = result.map((row: any) => {
+        let desc = row.Description || row.description || "";
+        let isNew = false;
+        if (desc.includes("<!--NEW-->")) {
+          isNew = true;
+          desc = desc.replace("<!--NEW-->", "").trim();
+        }
+        return {
+          name: row.Name || row.name,
+          isNew,
+          huntThreshold: row.HuntThreshold || row.huntthreshold || row.hunt_threshold,
+          evidences: row.Evidences || row.evidences,
+          description: desc,
+          strength: row.Strength || row.strength,
+          weakness: row.Weakness || row.weakness,
+          testToVerify: row.TestToVerify || row.testtoverify || row.test
+        };
+      });
       res.json(mappedGhosts);
     } catch (error) {
       console.error(error);
@@ -87,7 +96,7 @@ async function startServer() {
         name: ghost.name,
         hunt_threshold: ghost.huntThreshold,
         evidences: ghost.evidences,
-        description: ghost.description,
+        description: ghost.isNew ? ghost.description + "\n\n<!--NEW-->" : ghost.description,
         strength: ghost.strength,
         weakness: ghost.weakness,
         test: ghost.testToVerify
@@ -122,7 +131,7 @@ async function startServer() {
         name: ghost.name,
         hunt_threshold: ghost.huntThreshold,
         evidences: ghost.evidences,
-        description: ghost.description,
+        description: ghost.isNew ? ghost.description + "\n\n<!--NEW-->" : ghost.description,
         strength: ghost.strength,
         weakness: ghost.weakness,
         test: ghost.testToVerify

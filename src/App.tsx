@@ -27,13 +27,15 @@ export default function App() {
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+  const defaultChatMessages: ChatMessage[] = [
     {
       id: '1',
       role: 'assistant',
       text: 'Привіт! Я — ваш персональний ШІ-експерт з Phasmophobia. Я можу допомогти налаштувати ідеальну кастомну складність: збалансувати ризики та нагороди, створити хардкорний челендж або підібрати комфортні умови для новачків. Що вас цікавить?',
     },
-  ]);
+  ];
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(defaultChatMessages);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -43,12 +45,31 @@ export default function App() {
           .then(res => res.json())
           .then(data => setIsAdmin(data.isAdmin))
           .catch(err => console.error("Error checking admin status", err));
+          
+        const savedMessages = localStorage.getItem(`chat_messages_${currentUser.email}`);
+        if (savedMessages) {
+          try {
+            setChatMessages(JSON.parse(savedMessages));
+          } catch (e) {
+            console.error("Could not parse saved chat messages", e);
+            setChatMessages(defaultChatMessages);
+          }
+        } else {
+          setChatMessages(defaultChatMessages);
+        }
       } else {
         setIsAdmin(false);
+        setChatMessages(defaultChatMessages);
       }
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (user?.email) {
+      localStorage.setItem(`chat_messages_${user.email}`, JSON.stringify(chatMessages));
+    }
+  }, [chatMessages, user?.email]);
 
   const [editingGhost, setEditingGhost] = useState<Ghost | null>(null);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
@@ -62,13 +83,18 @@ export default function App() {
       if (!Array.isArray(ghostsData)) throw new Error("Ghosts not an array - " + JSON.stringify(ghostsData));
       const mappedGhosts: Ghost[] = ghostsData.map((g: any) => ({
         name: g.name,
+        isNew: g.isNew,
         hunt: g.huntThreshold,
         evidence: Array.isArray(g.evidences) ? g.evidences : (typeof g.evidences === 'string' ? g.evidences.split(",").map((s: string) => s.trim()) : g.evidence || []),
         desc: g.description || g.desc,
         strength: g.strength,
         weakness: g.weakness,
         test: g.testToVerify || g.test,
-      }));
+      })).sort((a: Ghost, b: Ghost) => {
+        if (a.isNew && !b.isNew) return -1;
+        if (!a.isNew && b.isNew) return 1;
+        return a.name.localeCompare(b.name);
+      });
       setGhosts(mappedGhosts);
 
       const resEq = await fetch("/api/equipment");
@@ -170,6 +196,7 @@ export default function App() {
     try {
       setAuthError(null);
       await signInWithGoogle();
+      window.location.reload();
     } catch (error: any) {
       if (error.code === 'auth/network-request-failed' || error.message.includes('network')) {
         setAuthError('Не вдалося виконати вхід. Будь ласка, спробуйте відкрити додаток у новій вкладці (Open in new tab), або вимкніть блокувальники реклами.');
@@ -183,7 +210,7 @@ export default function App() {
     try {
       setAuthError(null);
       await logOut();
-      setIsChatOpen(false);
+      window.location.reload();
     } catch (error) {
       console.error(error);
     }

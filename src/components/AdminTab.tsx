@@ -19,6 +19,7 @@ export function AdminTab({ userEmail, editingGhost, setEditingGhost, editingEqui
   // Ghost Form
   const [ghostName, setGhostName] = useState('');
   const [ghostHunt, setGhostHunt] = useState('');
+  const [ghostIsNew, setGhostIsNew] = useState(false);
   const [ghostEvidences, setGhostEvidences] = useState('');
   const [ghostDesc, setGhostDesc] = useState('');
   const [ghostStrength, setGhostStrength] = useState('');
@@ -39,6 +40,7 @@ export function AdminTab({ userEmail, editingGhost, setEditingGhost, editingEqui
       setActiveSubTab('ghost');
       setGhostName(editingGhost.name);
       setGhostHunt(editingGhost.hunt);
+      setGhostIsNew(!!editingGhost.isNew);
       setGhostEvidences(editingGhost.evidence.join(', '));
       setGhostDesc(editingGhost.desc);
       setGhostStrength(editingGhost.strength);
@@ -59,7 +61,7 @@ export function AdminTab({ userEmail, editingGhost, setEditingGhost, editingEqui
 
   const cancelEdit = () => {
     if (setEditingGhost) setEditingGhost(null);
-    setGhostName(''); setGhostHunt(''); setGhostEvidences('');
+    setGhostName(''); setGhostHunt(''); setGhostIsNew(false); setGhostEvidences('');
     setGhostDesc(''); setGhostStrength(''); setGhostWeakness(''); setGhostTest('');
     setMessage('');
   };
@@ -89,6 +91,7 @@ export function AdminTab({ userEmail, editingGhost, setEditingGhost, editingEqui
           adminEmail: userEmail,
           ghost: {
             name: ghostName,
+            isNew: ghostIsNew,
             huntThreshold: ghostHunt,
             evidences: ghostEvidences, // string or csv
             description: ghostDesc,
@@ -101,7 +104,7 @@ export function AdminTab({ userEmail, editingGhost, setEditingGhost, editingEqui
       if (res.ok) {
         setMessage(editingGhost ? 'Привида успішно оновлено!' : 'Привида успішно додано!');
         if (!editingGhost) {
-          setGhostName(''); setGhostHunt(''); setGhostEvidences('');
+          setGhostName(''); setGhostHunt(''); setGhostIsNew(false); setGhostEvidences('');
           setGhostDesc(''); setGhostStrength(''); setGhostWeakness(''); setGhostTest('');
         }
         if (onRefresh) onRefresh();
@@ -196,6 +199,10 @@ export function AdminTab({ userEmail, editingGhost, setEditingGhost, editingEqui
             <div>
               <label style={{ display: 'block', marginBottom: '5px' }}>Поріг атаки (Hunt Threshold)</label>
               <input type="text" value={ghostHunt} onChange={(e) => setGhostHunt(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} placeholder="напр. 50%" />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <input type="checkbox" id="ghostIsNew" checked={ghostIsNew} onChange={(e) => setGhostIsNew(e.target.checked)} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+              <label htmlFor="ghostIsNew" style={{ cursor: 'pointer', color: 'var(--text-main)' }}>Новий привид (додає відповідну позначку)</label>
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '5px' }}>Докази (через кому)</label>

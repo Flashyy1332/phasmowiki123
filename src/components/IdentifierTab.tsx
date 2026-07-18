@@ -98,9 +98,10 @@ export function IdentifierTab({
         ) : (
           possibleGhosts.map((ghost) => {
             return (
-              <div key={ghost.name} className="card">
+              <div key={ghost.name} className={`card ${ghost.isNew ? 'new-ghost' : ''}`}>
                 <h3>
                   {ghost.name}
+                  {ghost.isNew && <span className="new-badge">НОВИЙ</span>}
                   <span className="hunt-threshold">
                     Глузд для атаки: {ghost.hunt}
                   </span>

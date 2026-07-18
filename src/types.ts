@@ -1,5 +1,6 @@
 export interface Ghost {
   name: string;
+  isNew?: boolean;
   hunt: string;
   evidence: string[];
   desc: string;
