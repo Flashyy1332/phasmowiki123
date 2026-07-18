@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Menu, Sparkles, Wand2, Search, Ghost as GhostIcon, Wrench, Settings, LogOut, LogIn, BookOpen } from 'lucide-react';
 import { EVIDENCES, GHOSTS, EQUIPMENT } from './data';
@@ -267,7 +268,7 @@ export default function App() {
 
   return (
     <>
-      <header>
+      <header className="site-header" style={{ WebkitBackdropFilter: 'blur(24px)', backdropFilter: 'blur(24px)', backgroundColor: 'rgba(3, 7, 18, 0.70)' }}>
         <div className="header-container">
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <h1 style={{ marginBottom: 0 }}>

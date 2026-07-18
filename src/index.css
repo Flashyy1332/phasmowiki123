@@ -71,7 +71,7 @@ body::before {
 }
 
 /* Шапка сайту (Скляна) */
-header {
+.site-header {
     background-color: rgba(3, 7, 18, 0.70);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
@@ -497,7 +497,7 @@ details[open] summary::after {
 
 /* Адаптивність (Мобільні пристрої) */
 @media (max-width: 768px) {
-    header { 
+    .site-header { 
         padding: 12px 15px; 
     }
 
