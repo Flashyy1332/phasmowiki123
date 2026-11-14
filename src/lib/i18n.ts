@@ -66,7 +66,7 @@ applyDocument();
 const englishPart = (name: string) => name.match(/\(([^)]+)\)/)?.[1].trim();
 
 export function ghostName(ghost: Ghost, lang: Lang): string {
-  return lang === 'en' ? englishPart(ghost.name) || ghost.name : ghost.name;
+  return lang === 'en' ? englishPart(ghost.name) || ghost.en?.name || ghost.name : ghost.name;
 }
 
 export function ghostField(ghost: Ghost, field: 'hunt' | 'desc' | 'strength' | 'weakness' | 'test', lang: Lang): string {

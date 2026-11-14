@@ -6,6 +6,8 @@
  */
 
 export interface GhostText {
+  /** Англійська назва — потрібна лише тоді, коли в назві привида в базі немає дужок з англійською. */
+  name?: string;
   hunt: string;
   desc: string;
   strength: string;
@@ -223,6 +225,36 @@ export const GHOSTS_EN: Record<string, GhostText> = {
     weakness: "If you are near it, it 'ages'. Over time it becomes slower, and its hunt threshold drops (down to 15%).",
     test: 'Ask its age on the Ouija Board at the start, then again after 10 min — it will change! If it flew at the start and barely walks at the end — it is a Thaye.',
   },
+};
+
+/* Привиди, які в базі записані лише українською назвою, без англійської в дужках. */
+GHOSTS_EN['даян'] = { ...GHOSTS_EN.dayan, name: 'Dayan' };
+
+GHOSTS_EN['кормос'] = {
+  name: 'Cormos',
+  hunt: '50% (can attack at 70% if a player is actively running/sprinting near its room)',
+  desc: 'An absolutely blind hunter that navigates purely by noise. Ignores quiet, motionless players but gets irritated by running nearby. Its evidence mirrors the Mimic (without Freezing Temps).',
+  strength: 'Reacts instantly to the sounds of footsteps, running or voices. Emits a sharp sound signal and accelerates rapidly toward the noise from the base 1.7 m/s to 2.21 m/s (and under certain conditions up to 3.65 m/s). Sensitive to rustling even inside hiding spots.',
+  weakness: 'Absolutely blind. If a player turns off devices, does not talk and stands completely still, Cormos will walk right past, even if it ends up point-blank in the open.',
+  test: 'During a hunt, freeze in the middle of a long empty corridor with no sound and your flashlight off. An ordinary ghost kills you at once, while Cormos simply walks past. You can also try provoking an early attack (at 70% sanity) by running actively near its room.',
+};
+
+GHOSTS_EN['асванг'] = {
+  name: 'Aswang',
+  hunt: '50%',
+  desc: 'A dangerous stalker. Has a reduced base speed, but accelerates incredibly fast to its maximum on line of sight with a player.',
+  strength: 'Incredible acceleration on visual contact (Line of Sight). It needs only 8.67 seconds to reach its maximum speed (2.53 m/s), while ordinary ghosts take 13 seconds.',
+  weakness: 'Cannot kill players hidden in official hiding spots (closets, lockers) that close with a door.',
+  test: 'Run into an official hiding spot (a closet) right in front of the ghost, or leave a flashlight turned on inside. If it is an Aswang, it will open the door, but the hunt ends instantly (the player survives). The next hunt starts without a build-up phase.',
+};
+
+GHOSTS_EN['дейльдегаст'] = {
+  name: 'Daildegast',
+  hunt: '50%',
+  desc: 'A pedantic ghost whose hunting speed depends directly on the number of items players have scattered around. Very rarely interacts with doors and light switches.',
+  strength: 'It has a huge advantage at the start of the investigation. Its base speed during the first hunt is extremely high (3 m/s), although it does not speed up from line of sight with a player.',
+  weakness: 'The ghost can be slowed down considerably. The more unique items players (even dead ones!) move or throw around the location before the hunt starts, the slower it becomes (down to as little as 0.4 m/s).',
+  test: "In a no-evidence game or on Nightmare, listen to the footsteps during the first hunt — the ghost will be very fast. Right after the attack ends, scatter as many different items around the house as you can (a maximum of 26 unique items counts). During the next hunt the ghost will be very slow. Important: throwing items during a hunt does not work (the speed is locked in); after every attack Daildegast's speed resets to the maximum 3 m/s, so the mess must be made between hunts.",
 };
 
 /* Примітки до швидкості (ключ — як у ghostMeta.SPEEDS). */
