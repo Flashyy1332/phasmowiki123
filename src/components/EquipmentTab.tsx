@@ -1,137 +1,99 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { Equipment } from '../types';
+import { sanitizeHtml, stripHtml } from '../lib/util';
+import { CloseButton, Modal, SearchField } from './ui';
+import type { AdminActions } from '../App';
 
 interface Props {
   equipment: Equipment[];
-  isAdmin?: boolean;
-  onEdit?: (equipment: Equipment) => void;
-  onDelete?: (name: string) => void;
+  admin: AdminActions | null;
+  query: string;
+  setQuery: (q: string) => void;
 }
 
-export function EquipmentTab({ equipment, isAdmin, onEdit, onDelete }: Props) {
+function Photo({ item, onOpen }: { item: Equipment; onOpen: () => void }) {
+  const [failed, setFailed] = useState(false);
+  if (!item.image || failed) {
+    return (
+      <div className="gear-photo gear-photo-empty" aria-hidden="true">
+        {item.icon || '📦'}
+      </div>
+    );
+  }
   return (
-    <section id="equipment" className="tab-content active">
-      <h2>Ігрове Обладнання та Предмети</h2>
+    <button className="gear-photo" onClick={onOpen} aria-label={`Збільшити фото: ${item.name}`}>
+      <img src={item.image} alt={item.name} loading="lazy" onError={() => setFailed(true)} />
+    </button>
+  );
+}
 
-      <div
-        className="card"
-        style={{
-          marginBottom: '25px',
-          borderLeft: '4px solid var(--accent-purple)',
-          background: 'rgba(56, 189, 248, 0.05)',
-        }}
-      >
-        <h3
-          style={{
-            color: 'var(--accent-purple)',
-            marginBottom: '10px',
-            fontSize: '1.2rem',
-          }}
-        >
-          ⭐ Рівні спорядження
-        </h3>
-        <p
-          style={{
-            color: 'var(--text-main)',
-            fontSize: '0.95rem',
-            lineHeight: 1.6,
-          }}
-        >
-          У грі існують <strong>предмети 1, 2 та 3 рівнів</strong>. Кожен
-          предмет можна покращити у лобі, використовуючи зароблені гроші та
-          підвищуючи рівень персонажа.
-          <br />
-          <br />
-          <span style={{ color: 'var(--text-title)' }}>
-            • <strong>1 рівень:</strong>
-          </span>{' '}
-          Старе, аналогове або зношене обладнання (наприклад, касетний аудіо
-          рекордер або старий термометр). Працює повільно або має малий радіус
-          дії.
-          <br />
-          <span style={{ color: 'var(--text-title)' }}>
-            • <strong>2 рівень:</strong>
-          </span>{' '}
-          Стандартне сучасне спорядження (електронний ЕМП, цифровий термометр).
-          Надійне та зручне.
-          <br />
-          <span style={{ color: 'var(--text-title)' }}>
-            • <strong>3 рівень:</strong>
-          </span>{' '}
-          Високотехнологічні прилади. Працюють миттєво, мають величезний радіус
-          дії та спеціальні функції (наприклад, екранний термометр або потужний
-          прожектор).
-        </p>
-        <p
-          style={{
-            textAlign: 'center',
-            marginTop: '15px',
-            paddingTop: '15px',
-            borderTop: '1px solid rgba(255,255,255,0.1)',
-            color: 'var(--accent-purple)',
-            fontWeight: 'bold',
-            fontSize: '0.95rem',
-          }}
-        >
-          📸 Зверніть увагу: на всіх фотографіях спорядження нижче зображені
-          предмети 3-го рівня.
-        </p>
+export function EquipmentTab({ equipment, admin, query, setQuery }: Props) {
+  const [zoom, setZoom] = useState<Equipment | null>(null);
+  const shown = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return needle ? equipment.filter((e) => `${e.name} ${stripHtml(e.desc)}`.toLowerCase().includes(needle)) : equipment;
+  }, [equipment, query]);
+
+  return (
+    <section>
+      <div className="page-head">
+        <h1>Спорядження</h1>
+        <p className="muted">На фото — предмети третього рівня. Натисніть на фото, щоб збільшити.</p>
       </div>
 
-      <div className="grid-cards">
-        {equipment.map((item) => (
-          <div
-            key={item.name}
-            className="card"
-            style={{ justifyContent: 'flex-start', padding: '20px' }}
-          >
-            {item.image && (
-              <img
-                src={item.image}
-                alt={item.name}
-                className="eq-image"
-                onError={(e) => (e.currentTarget.style.display = 'none')}
-              />
-            )}
-            <h3
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '15px',
-                justifyContent: 'flex-start',
-                marginBottom: '8px',
-              }}
-            >
-              <span
-                style={{
-                  fontSize: '2.2rem',
-                  filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.5))',
-                }}
-              >
-                {item.icon}
-              </span>
-              {item.name}
-            </h3>
-            <div
-              style={{
-                color: 'var(--text-main)',
-                marginTop: '10px',
-                padding: '10px',
-                background: 'rgba(0,0,0,0.15)',
-                borderRadius: '10px',
-                lineHeight: 1.5,
-              }}
-              dangerouslySetInnerHTML={{ __html: item.desc }}
-            />
-            {isAdmin && (
-              <div style={{ display: 'flex', gap: '10px', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--card-border)' }}>
-                <button onClick={() => { if (onEdit) onEdit(item); }} className="nav-btn" style={{ flex: 1, backgroundColor: 'var(--accent-purple)', color: '#000', fontSize: '0.9em', padding: '6px' }}>Редагувати</button>
-                <button onClick={() => { if (onDelete) onDelete(item.name); }} className="nav-btn" style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', fontSize: '0.9em', padding: '6px' }}>Видалити</button>
+      <div className="tiers">
+        <div><b>1 рівень</b>Старе аналогове обладнання: повільне, з малим радіусом дії.</div>
+        <div><b>2 рівень</b>Сучасне стандартне спорядження: надійне і зручне.</div>
+        <div><b>3 рівень</b>Найкращі прилади: миттєві, з великим радіусом і додатковими функціями.</div>
+      </div>
+
+      <div className="toolbar">
+        <SearchField value={query} onChange={setQuery} placeholder="Назва або опис предмета…" />
+      </div>
+
+      {shown.length === 0 ? (
+        <div className="empty">
+          <h2>Такого предмета немає</h2>
+          <button className="btn btn-quiet" onClick={() => setQuery('')}>Показати все спорядження</button>
+        </div>
+      ) : (
+        <div className="gear-grid">
+          {shown.map((item) => (
+            <article key={item.name} className="gear">
+              <Photo item={item} onOpen={() => setZoom(item)} />
+              <div className="gear-body">
+                <h3>
+                  <span aria-hidden="true">{item.icon}</span> {item.name}
+                </h3>
+                <div className="gear-desc" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.desc) }} />
+                {admin && (
+                  <div className="admin-row">
+                    <button className="btn btn-quiet" onClick={() => admin.editEquipment(item)}>
+                      <Pencil size={15} /> Редагувати
+                    </button>
+                    <button className="btn btn-danger-quiet" onClick={() => admin.deleteEquipment(item.name)}>
+                      <Trash2 size={15} /> Видалити
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      <Modal open={!!zoom} onClose={() => setZoom(null)} label={zoom?.name || ''} className="modal-photo">
+        {zoom && (
+          <>
+            <div className="modal-bar">
+              <h3>{zoom.name}</h3>
+              <CloseButton onClick={() => setZoom(null)} />
+            </div>
+            <img src={zoom.image} alt={zoom.name} />
+          </>
+        )}
+      </Modal>
     </section>
   );
 }

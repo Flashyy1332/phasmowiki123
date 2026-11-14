@@ -1,77 +1,87 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { EVIDENCES } from '../data';
 import { Ghost } from '../types';
+import { maxHuntThreshold, speedOf } from '../lib/ghostMeta';
+import { GhostCard } from './GhostCard';
+import { SearchField } from './ui';
+import type { AdminActions } from '../App';
+
+type Sort = 'name' | 'hunt' | 'speed';
 
 interface Props {
   ghosts: Ghost[];
-  isAdmin: boolean;
-  onEdit: (ghost: Ghost) => void;
-  onDelete: (name: string) => void;
+  admin: AdminActions | null;
+  query: string;
+  setQuery: (q: string) => void;
 }
 
-export function GhostsTab({ ghosts, isAdmin, onEdit, onDelete }: Props) {
+export function GhostsTab({ ghosts, admin, query, setQuery }: Props) {
+  const [evidence, setEvidence] = useState<string[]>([]);
+  const [sort, setSort] = useState<Sort>('name');
+
+  const shown = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const list = ghosts.filter(
+      (g) =>
+        evidence.every((e) => g.evidence.includes(e)) &&
+        (!needle || [g.name, g.desc, g.strength, g.weakness, g.test].some((t) => t.toLowerCase().includes(needle))),
+    );
+    if (sort === 'hunt') return [...list].sort((a, b) => (maxHuntThreshold(b) ?? -1) - (maxHuntThreshold(a) ?? -1));
+    if (sort === 'speed') return [...list].sort((a, b) => speedOf(b).max - speedOf(a).max);
+    return list;
+  }, [ghosts, query, evidence, sort]);
+
+  const toggle = (e: string) => setEvidence((list) => (list.includes(e) ? list.filter((x) => x !== e) : [...list, e]));
+
   return (
-    <section id="ghosts" className="tab-content active">
-      <h2>Детальний довідник ({ghosts.length} привидів)</h2>
-      <div className="grid-cards">
-        {ghosts.map((ghost) => {
-          return (
-            <div key={ghost.name} className={`card ${ghost.isNew ? 'new-ghost' : ''}`}>
-              <h3>
-                {ghost.name}
-                {ghost.isNew && <span className="new-badge">НОВИЙ</span>}
-                <span className="hunt-threshold">
-                  Глузд для атаки: {ghost.hunt}
-                </span>
-              </h3>
-              <div className="ghost-tags">
-                {ghost.evidence.map((e) => {
-                  const isFake =
-                    ghost.name.includes('Мімік') && e === 'Примарний вогник';
-                  return (
-                    <span key={e} className={isFake ? 'fake' : ''}>
-                      {e}
-                      {isFake ? ' (Фейк)' : ''}
-                    </span>
-                  );
-                })}
-              </div>
-              <p
-                style={{
-                  fontStyle: 'italic',
-                  color: 'var(--text-muted)',
-                  marginBottom: '15px',
-                  paddingLeft: '10px',
-                  borderLeft: '2px solid var(--accent-purple)',
-                  lineHeight: 1.5,
-                }}
-              >
-                {ghost.desc}
-              </p>
-
-              <div style={{ flexGrow: 1 }}>
-                <div className="trait strength">
-                  <strong>Сила:</strong> {ghost.strength}
-                </div>
-                <div className="trait weakness">
-                  <strong>Слабкість:</strong> {ghost.weakness}
-                </div>
-              </div>
-
-              <details>
-                <summary>Як перевірити (Тести)?</summary>
-                <div className="test-content">{ghost.test}</div>
-              </details>
-              
-              {isAdmin && (
-                <div style={{ display: 'flex', gap: '10px', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid var(--card-border)' }}>
-                  <button onClick={() => onEdit(ghost)} className="nav-btn" style={{ flex: 1, backgroundColor: 'var(--accent-purple)', color: '#000', fontSize: '0.9em', padding: '6px' }}>Редагувати</button>
-                  <button onClick={() => onDelete(ghost.name)} className="nav-btn" style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', fontSize: '0.9em', padding: '6px' }}>Видалити</button>
-                </div>
-              )}
-            </div>
-          );
-        })}
+    <section>
+      <div className="page-head">
+        <h1>Довідник привидів</h1>
+        <p className="muted">
+          {shown.length === ghosts.length ? `Усі ${ghosts.length} привидів гри` : `Знайдено ${shown.length} з ${ghosts.length}`}
+        </p>
       </div>
+
+      <div className="toolbar">
+        <SearchField value={query} onChange={setQuery} placeholder="Назва, сила, слабкість…" />
+        <label className="field-select">
+          Сортувати
+          <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <option value="name">за назвою</option>
+            <option value="hunt">за порогом атаки</option>
+            <option value="speed">за швидкістю</option>
+          </select>
+        </label>
+      </div>
+      <div className="chips toolbar-chips">
+        {EVIDENCES.map((e) => (
+          <button key={e} className={`chip ${evidence.includes(e) ? 'is-on' : ''}`} onClick={() => toggle(e)} aria-pressed={evidence.includes(e)}>
+            {e}
+          </button>
+        ))}
+      </div>
+
+      {shown.length === 0 ? (
+        <div className="empty">
+          <h2>Нічого не знайдено</h2>
+          <p>Спробуйте інший запит або зніміть фільтр доказів.</p>
+          <button
+            className="btn btn-quiet"
+            onClick={() => {
+              setQuery('');
+              setEvidence([]);
+            }}
+          >
+            Очистити фільтри
+          </button>
+        </div>
+      ) : (
+        <div className="ghost-grid">
+          {shown.map((g) => (
+            <GhostCard key={g.name} ghost={g} matched={evidence} admin={admin} showDesc />
+          ))}
+        </div>
+      )}
     </section>
   );
 }

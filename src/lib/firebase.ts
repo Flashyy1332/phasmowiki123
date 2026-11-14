@@ -1,31 +1,23 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getAnalytics } from "firebase/analytics";
 import firebaseConfig from '../../firebase-applet-config.json';
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const analytics = getAnalytics(app);
 
-// Initialize Firebase Authentication and get a reference to the service
+// Аналітика необов'язкова: у приватному режимі чи з блокувальником вона недоступна,
+// і це не повинно ламати сайт.
+import('firebase/analytics')
+  .then(async ({ getAnalytics, isSupported }) => {
+    if (await isSupported()) getAnalytics(app);
+  })
+  .catch(() => {});
+
 export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+const googleProvider = new GoogleAuthProvider();
 
-export const signInWithGoogle = async () => {
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
-  } catch (error) {
-    console.error("Error signing in with Google", error);
-    throw error;
-  }
-};
+export const signInWithGoogle = async () => (await signInWithPopup(auth, googleProvider)).user;
+export const logOut = () => signOut(auth);
 
-export const logOut = async () => {
-  try {
-    await signOut(auth);
-  } catch (error) {
-    console.error("Error signing out", error);
-    throw error;
-  }
-};
+/** ID-токен поточного користувача для заголовка Authorization. */
+export const getIdToken = async (): Promise<string | null> =>
+  auth.currentUser ? auth.currentUser.getIdToken() : null;

@@ -1,313 +1,283 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { CheckCircle2, DatabaseZap, RefreshCw, TriangleAlert } from 'lucide-react';
+import { EVIDENCES } from '../data';
 import { Ghost, Equipment } from '../types';
+import { api, LOCAL_EQUIPMENT, LOCAL_GHOSTS, WikiData } from '../lib/api';
+import { sanitizeHtml } from '../lib/util';
+import { GhostCard } from './GhostCard';
+import { useToast } from './ui';
 
-interface AdminTabProps {
-  userEmail: string;
-  editingGhost?: Ghost | null;
-  setEditingGhost?: (ghost: Ghost | null) => void;
-  editingEquipment?: Equipment | null;
-  setEditingEquipment?: (equipment: Equipment | null) => void;
-  onRefresh?: () => void;
+interface Health {
+  db: { configured: boolean; canWrite: boolean; ok: boolean; ghosts?: number; equipment?: number; code?: string; message?: string };
+  ai: { configured: boolean; model: string };
 }
 
-export function AdminTab({ userEmail, editingGhost, setEditingGhost, editingEquipment, setEditingEquipment, onRefresh }: AdminTabProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'ghost' | 'equipment'>('ghost');
-  
-  const ghostDescRef = useRef<HTMLTextAreaElement>(null);
-  const eqDescRef = useRef<HTMLTextAreaElement>(null);
-  
-  // Ghost Form
-  const [ghostName, setGhostName] = useState('');
-  const [ghostHunt, setGhostHunt] = useState('');
-  const [ghostIsNew, setGhostIsNew] = useState(false);
-  const [ghostEvidences, setGhostEvidences] = useState('');
-  const [ghostDesc, setGhostDesc] = useState('');
-  const [ghostStrength, setGhostStrength] = useState('');
-  const [ghostWeakness, setGhostWeakness] = useState('');
-  const [ghostTest, setGhostTest] = useState('');
-  
-  // Equipment Form
-  const [eqName, setEqName] = useState('');
-  const [eqIcon, setEqIcon] = useState('');
-  const [eqImageName, setEqImageName] = useState('');
-  const [eqDesc, setEqDesc] = useState('');
+interface Props {
+  data: WikiData;
+  editingGhost: Ghost | null;
+  setEditingGhost: (g: Ghost | null) => void;
+  editingEquipment: Equipment | null;
+  setEditingEquipment: (e: Equipment | null) => void;
+  onRefresh: () => Promise<unknown>;
+}
 
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+const EMPTY_GHOST: Ghost = { name: '', isNew: false, hunt: '', evidence: [], desc: '', strength: '', weakness: '', test: '' };
+const EMPTY_EQUIPMENT: Equipment = { name: '', icon: '', image: '', desc: '' };
+
+const toApiGhost = (g: Ghost) => ({ name: g.name, isNew: !!g.isNew, huntThreshold: g.hunt, evidences: g.evidence, description: g.desc, strength: g.strength, weakness: g.weakness, testToVerify: g.test });
+const toApiEquipment = (e: Equipment) => ({ name: e.name, icon: e.icon, imageName: e.image.replace(/^\/items\//, ''), description: e.desc });
+
+export function AdminTab({ data, editingGhost, setEditingGhost, editingEquipment, setEditingEquipment, onRefresh }: Props) {
+  const toast = useToast();
+  const [section, setSection] = useState<'ghost' | 'equipment'>('ghost');
+  const [ghost, setGhost] = useState<Ghost>(EMPTY_GHOST);
+  const [item, setItem] = useState<Equipment>(EMPTY_EQUIPMENT);
+  const [saving, setSaving] = useState(false);
+  const [health, setHealth] = useState<Health | null>(null);
+  const [checking, setChecking] = useState(false);
+  const descRef = useRef<HTMLTextAreaElement>(null);
+
+  const checkHealth = async () => {
+    setChecking(true);
+    try {
+      setHealth(await api<Health>('/api/health'));
+    } catch (e: any) {
+      setHealth({ db: { configured: false, canWrite: false, ok: false, message: e.message }, ai: { configured: false, model: '' } });
+    }
+    setChecking(false);
+  };
+
+  useEffect(() => {
+    checkHealth();
+  }, []);
 
   useEffect(() => {
     if (editingGhost) {
-      setActiveSubTab('ghost');
-      setGhostName(editingGhost.name);
-      setGhostHunt(editingGhost.hunt);
-      setGhostIsNew(!!editingGhost.isNew);
-      setGhostEvidences(editingGhost.evidence.join(', '));
-      setGhostDesc(editingGhost.desc);
-      setGhostStrength(editingGhost.strength);
-      setGhostWeakness(editingGhost.weakness);
-      setGhostTest(editingGhost.test);
+      setSection('ghost');
+      setGhost(editingGhost);
     }
   }, [editingGhost]);
 
   useEffect(() => {
     if (editingEquipment) {
-      setActiveSubTab('equipment');
-      setEqName(editingEquipment.name);
-      setEqIcon(editingEquipment.icon);
-      setEqImageName(editingEquipment.image || '');
-      setEqDesc(editingEquipment.desc);
+      setSection('equipment');
+      setItem(editingEquipment);
     }
   }, [editingEquipment]);
 
-  const cancelEdit = () => {
-    if (setEditingGhost) setEditingGhost(null);
-    setGhostName(''); setGhostHunt(''); setGhostIsNew(false); setGhostEvidences('');
-    setGhostDesc(''); setGhostStrength(''); setGhostWeakness(''); setGhostTest('');
-    setMessage('');
+  const resetGhost = () => {
+    setEditingGhost(null);
+    setGhost(EMPTY_GHOST);
+  };
+  const resetItem = () => {
+    setEditingEquipment(null);
+    setItem(EMPTY_EQUIPMENT);
   };
 
-  const cancelEquipmentEdit = () => {
-    if (setEditingEquipment) setEditingEquipment(null);
-    setEqName(''); setEqIcon(''); setEqImageName(''); setEqDesc('');
-    setMessage('');
-  };
-
-  const handleGhostSubmit = async (e: React.FormEvent) => {
+  const saveGhost = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage('');
+    if (ghost.evidence.length < 3) return toast('Позначте щонайменше три докази.', 'error');
+    setSaving(true);
     try {
-      const url = editingGhost 
-        ? `/api/ghosts/${encodeURIComponent(editingGhost.name)}` 
-        : '/api/ghosts';
-      const method = editingGhost ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          adminEmail: userEmail,
-          ghost: {
-            name: ghostName,
-            isNew: ghostIsNew,
-            huntThreshold: ghostHunt,
-            evidences: ghostEvidences, // string or csv
-            description: ghostDesc,
-            strength: ghostStrength,
-            weakness: ghostWeakness,
-            testToVerify: ghostTest
-          }
-        })
-      });
-      if (res.ok) {
-        setMessage(editingGhost ? 'Привида успішно оновлено!' : 'Привида успішно додано!');
-        if (!editingGhost) {
-          setGhostName(''); setGhostHunt(''); setGhostIsNew(false); setGhostEvidences('');
-          setGhostDesc(''); setGhostStrength(''); setGhostWeakness(''); setGhostTest('');
-        }
-        if (onRefresh) onRefresh();
-      } else {
-        const error = await res.json();
-        setMessage(`Помилка: ${error.error || 'Невідома помилка'}`);
-      }
+      await api(editingGhost ? `/api/ghosts/${encodeURIComponent(editingGhost.name)}` : '/api/ghosts', { method: editingGhost ? 'PUT' : 'POST', body: { ghost: toApiGhost(ghost) } });
+      toast(editingGhost ? `Збережено: ${ghost.name}` : `Додано: ${ghost.name}`);
+      resetGhost();
+      await onRefresh();
     } catch (err: any) {
-      setMessage(`Помилка: ${err.message}`);
+      toast(err.message, 'error');
     }
-    setLoading(false);
+    setSaving(false);
   };
 
-  const handleEquipmentSubmit = async (e: React.FormEvent) => {
+  const saveItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage('');
+    setSaving(true);
     try {
-      const url = editingEquipment
-        ? `/api/equipment/${encodeURIComponent(editingEquipment.name)}`
-        : '/api/equipment';
-      const method = editingEquipment ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          adminEmail: userEmail,
-          equipment: {
-            name: eqName,
-            icon: eqIcon,
-            imageName: eqImageName,
-            description: eqDesc,
-          }
-        })
-      });
-      if (res.ok) {
-        setMessage(editingEquipment ? 'Спорядження успішно оновлено!' : 'Спорядження успішно додано!');
-        if (!editingEquipment) {
-          setEqName(''); setEqIcon(''); setEqImageName(''); setEqDesc('');
-        }
-        if (onRefresh) onRefresh();
-      } else {
-        const error = await res.json();
-        setMessage(`Помилка: ${error.error || 'Невідома помилка'}`);
-      }
+      await api(editingEquipment ? `/api/equipment/${encodeURIComponent(editingEquipment.name)}` : '/api/equipment', { method: editingEquipment ? 'PUT' : 'POST', body: { equipment: toApiEquipment(item) } });
+      toast(editingEquipment ? `Збережено: ${item.name}` : `Додано: ${item.name}`);
+      resetItem();
+      await onRefresh();
     } catch (err: any) {
-      setMessage(`Помилка: ${err.message}`);
+      toast(err.message, 'error');
     }
-    setLoading(false);
+    setSaving(false);
   };
+
+  const importLocal = async () => {
+    setSaving(true);
+    try {
+      const result = await api<{ ghosts: number; equipment: number }>('/api/admin/import', {
+        method: 'POST',
+        body: { ghosts: LOCAL_GHOSTS.map(toApiGhost), equipment: LOCAL_EQUIPMENT.map(toApiEquipment) },
+      });
+      toast(`Додано в базу: привидів ${result.ghosts}, предметів ${result.equipment}`);
+      await Promise.all([onRefresh(), checkHealth()]);
+    } catch (err: any) {
+      toast(err.message, 'error');
+    }
+    setSaving(false);
+  };
+
+  const wrap = (before: string, after: string) => {
+    const el = descRef.current;
+    if (!el) return;
+    const { selectionStart: s, selectionEnd: e } = el;
+    setItem((it) => ({ ...it, desc: it.desc.slice(0, s) + before + it.desc.slice(s, e) + after + it.desc.slice(e) }));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(s + before.length, e + before.length);
+    });
+  };
+
+  const toggleEvidence = (e: string) =>
+    setGhost((g) => ({ ...g, evidence: g.evidence.includes(e) ? g.evidence.filter((x) => x !== e) : [...g.evidence, e] }));
+
+  const db = health?.db;
 
   return (
-    <section className="tab-content active" style={{ padding: '20px' }}>
-      <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
-        <h2 style={{ borderBottom: '1px solid var(--card-border)', paddingBottom: '15px' }}>Панель Адміністратора</h2>
-        
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', marginTop: '15px' }}>
-          <button 
-            className={`nav-btn ${activeSubTab === 'ghost' ? 'active' : ''}`}
-            onClick={() => { setActiveSubTab('ghost'); setMessage(''); cancelEquipmentEdit(); }}
-          >
-            Додати Привида
-          </button>
-          <button 
-            className={`nav-btn ${activeSubTab === 'equipment' ? 'active' : ''}`}
-            onClick={() => { setActiveSubTab('equipment'); setMessage(''); cancelEdit(); }}
-          >
-            Додати Спорядження
-          </button>
-        </div>
-
-        {message && (
-          <div style={{ padding: '10px', marginBottom: '20px', borderRadius: '4px', backgroundColor: message.includes('Помилка') ? '#ef4444' : '#22c55e', color: '#fff' }}>
-            {message}
-          </div>
-        )}
-
-        {activeSubTab === 'ghost' && (
-          <form onSubmit={handleGhostSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {editingGhost && (
-              <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '10px', borderRadius: '4px', border: '1px solid var(--accent-purple)' }}>
-                <strong>Режим редагування:</strong> {editingGhost.name}
-              </div>
-            )}
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Назва привида</label>
-              <input type="text" value={ghostName} onChange={(e) => setGhostName(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Поріг атаки (Hunt Threshold)</label>
-              <input type="text" value={ghostHunt} onChange={(e) => setGhostHunt(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} placeholder="напр. 50%" />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <input type="checkbox" id="ghostIsNew" checked={ghostIsNew} onChange={(e) => setGhostIsNew(e.target.checked)} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-              <label htmlFor="ghostIsNew" style={{ cursor: 'pointer', color: 'var(--text-main)' }}>Новий привид (додає відповідну позначку)</label>
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Докази (через кому)</label>
-              <input type="text" value={ghostEvidences} onChange={(e) => setGhostEvidences(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} placeholder="напр. ЕМП (рівень 5), Радіоприймач, Блокнот" />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Опис (Description)</label>
-              <EditorToolbar targetRef={ghostDescRef} val={ghostDesc} setVal={setGhostDesc} />
-              <textarea ref={ghostDescRef} value={ghostDesc} onChange={(e) => setGhostDesc(e.target.value)} rows={3} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Сила (Strength)</label>
-              <textarea value={ghostStrength} onChange={(e) => setGhostStrength(e.target.value)} rows={2} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Слабкість (Weakness)</label>
-              <textarea value={ghostWeakness} onChange={(e) => setGhostWeakness(e.target.value)} rows={2} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Тест для перевірки (Test)</label>
-              <textarea value={ghostTest} onChange={(e) => setGhostTest(e.target.value)} rows={2} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} />
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="submit" disabled={loading} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--accent-purple)', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                {loading ? 'Збереження...' : (editingGhost ? 'Зберегти Зміни' : 'Додати Привида')}
-              </button>
-              {editingGhost && (
-                <button type="button" onClick={cancelEdit} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--card-border)', color: 'var(--text-title)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                  Скасувати
-                </button>
-              )}
-            </div>
-          </form>
-        )}
-
-        {activeSubTab === 'equipment' && (
-          <form onSubmit={handleEquipmentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            {editingEquipment && (
-              <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '10px', borderRadius: '4px', border: '1px solid var(--accent-purple)' }}>
-                <strong>Режим редагування:</strong> {editingEquipment.name}
-              </div>
-            )}
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Назва спорядження</label>
-              <input type="text" value={eqName} onChange={(e) => setEqName(e.target.value)} required style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Іконка (Емодзі)</label>
-              <input type="text" value={eqIcon} onChange={(e) => setEqIcon(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} placeholder="напр. 📸" />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Назва файлу зображення / URL (image_url)</label>
-              <input type="text" value={eqImageName} onChange={(e) => setEqImageName(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} placeholder="напр. temp.png" />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px' }}>Опис (Description)</label>
-              <EditorToolbar targetRef={eqDescRef} val={eqDesc} setVal={setEqDesc} />
-              <textarea ref={eqDescRef} value={eqDesc} onChange={(e) => setEqDesc(e.target.value)} rows={5} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--bg-main)', color: 'var(--text-main)', border: '1px solid var(--card-border)' }} />
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="submit" disabled={loading} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--accent-purple)', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                {loading ? 'Збереження...' : (editingEquipment ? 'Зберегти Зміни' : 'Додати Спорядження')}
-              </button>
-              {editingEquipment && (
-                <button type="button" onClick={cancelEquipmentEdit} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--card-border)', color: 'var(--text-title)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                  Скасувати
-                </button>
-              )}
-            </div>
-          </form>
-        )}
+    <div className="admin">
+      <div className="page-head">
+        <h1>Адмін-панель</h1>
+        <p className="muted">Зміни одразу потрапляють у базу і стають видимими всім відвідувачам.</p>
       </div>
-    </section>
-  );
-}
 
-const EditorToolbar = ({ targetRef, val, setVal }: { targetRef: React.RefObject<HTMLTextAreaElement>, val: string, setVal: (val: string) => void }) => {
-  const insertFormat = (startTag: string, endTag: string) => {
-    const textarea = targetRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const newText = val.substring(0, start) + startTag + val.substring(start, end) + endTag + val.substring(end);
-    setVal(newText);
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + startTag.length, start + startTag.length + (end - start));
-    }, 0);
-  };
+      <section className={`panel health ${db?.ok ? 'is-ok' : 'is-bad'}`}>
+        <div className="health-main">
+          {db?.ok ? <CheckCircle2 size={26} /> : <TriangleAlert size={26} />}
+          <div>
+            <h2>{!health ? 'Перевіряємо базу…' : db?.ok ? 'База даних працює' : 'База даних недоступна'}</h2>
+            {health && (
+              <p>
+                {db?.ok
+                  ? `У базі ${db.ghosts} привидів і ${db.equipment} предметів.${db.canWrite ? '' : ' Запис вимкнено: не задано SUPABASE_SECRET_KEY.'}`
+                  : db?.message}
+              </p>
+            )}
+            {health && !health.ai.configured && <p className="muted">ШІ-асистент вимкнено: не задано GEMINI_API_KEY.</p>}
+          </div>
+        </div>
+        <div className="row-end">
+          <button className="btn btn-quiet" onClick={checkHealth} disabled={checking}>
+            <RefreshCw size={15} className={checking ? 'spin' : ''} /> Перевірити
+          </button>
+          {db?.ok && db.canWrite && (
+            <button className="btn btn-quiet" onClick={importLocal} disabled={saving} title="Додає з вбудованого довідника записи, яких у базі ще немає. Наявні не змінює.">
+              <DatabaseZap size={15} /> Заповнити базу
+            </button>
+          )}
+        </div>
+      </section>
 
-  const btnStyle = { padding: '4px 8px', border: '1px solid var(--card-border)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85em', background: 'var(--bg-main)' };
+      <div className="chips">
+        <button className={`chip ${section === 'ghost' ? 'is-on' : ''}`} onClick={() => setSection('ghost')}>Привид</button>
+        <button className={`chip ${section === 'equipment' ? 'is-on' : ''}`} onClick={() => setSection('equipment')}>Спорядження</button>
+      </div>
 
-  return (
-    <div style={{ display: 'flex', gap: '5px', marginBottom: '8px', flexWrap: 'wrap' }}>
-      <button type="button" onClick={() => insertFormat('<b>', '</b>')} style={{ ...btnStyle, color: 'var(--text-main)', fontWeight: 'bold' }}>B</button>
-      <button type="button" onClick={() => insertFormat('<i>', '</i>')} style={{ ...btnStyle, color: 'var(--text-main)', fontStyle: 'italic' }}>I</button>
-      <button type="button" onClick={() => insertFormat('<br />', '')} style={{ ...btnStyle, color: 'var(--text-main)' }}>↵ (Break)</button>
-      <button type="button" onClick={() => insertFormat('<ul>\\n  <li>', '</li>\\n</ul>')} style={{ ...btnStyle, color: 'var(--text-main)' }}>List</button>
-      
-      <span style={{ margin: '0 5px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>|</span>
-      
-      <button type="button" onClick={() => insertFormat('<span style="color: #ef4444;">', '</span>')} style={{ ...btnStyle, color: '#ef4444', borderColor: '#ef4444' }}>Червоний</button>
-      <button type="button" onClick={() => insertFormat('<span style="color: #22c55e;">', '</span>')} style={{ ...btnStyle, color: '#22c55e', borderColor: '#22c55e' }}>Зелений</button>
-      <button type="button" onClick={() => insertFormat('<span style="color: #eab308;">', '</span>')} style={{ ...btnStyle, color: '#eab308', borderColor: '#eab308' }}>Жовтий</button>
-      <button type="button" onClick={() => insertFormat('<span style="color: var(--accent-purple);">', '</span>')} style={{ ...btnStyle, color: 'var(--accent-purple)', borderColor: 'var(--accent-purple)' }}>Фіолетовий</button>
+      {section === 'ghost' ? (
+        <div className="admin-split">
+          <form className="panel form" onSubmit={saveGhost}>
+            <h2>{editingGhost ? `Редагування: ${editingGhost.name}` : 'Новий привид'}</h2>
+            <label>
+              Назва
+              <input required value={ghost.name} onChange={(e) => setGhost({ ...ghost, name: e.target.value })} placeholder="Дух (Spirit)" />
+            </label>
+            <label>
+              Поріг атаки
+              <input required value={ghost.hunt} onChange={(e) => setGhost({ ...ghost, hunt: e.target.value })} placeholder="50% або 60% (темрява) / 40% (світло)" />
+            </label>
+            <fieldset>
+              <legend>Докази</legend>
+              <div className="chips">
+                {EVIDENCES.map((e) => (
+                  <button type="button" key={e} className={`chip ${ghost.evidence.includes(e) ? 'is-on' : ''}`} onClick={() => toggleEvidence(e)} aria-pressed={ghost.evidence.includes(e)}>
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <label>
+              Короткий опис
+              <textarea rows={2} value={ghost.desc} onChange={(e) => setGhost({ ...ghost, desc: e.target.value })} />
+            </label>
+            <label>
+              Сила
+              <textarea rows={2} value={ghost.strength} onChange={(e) => setGhost({ ...ghost, strength: e.target.value })} />
+            </label>
+            <label>
+              Слабкість
+              <textarea rows={2} value={ghost.weakness} onChange={(e) => setGhost({ ...ghost, weakness: e.target.value })} />
+            </label>
+            <label>
+              Як перевірити
+              <textarea rows={3} value={ghost.test} onChange={(e) => setGhost({ ...ghost, test: e.target.value })} />
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={!!ghost.isNew} onChange={(e) => setGhost({ ...ghost, isNew: e.target.checked })} />
+              Позначити як нового
+            </label>
+            <div className="row-end">
+              {(editingGhost || ghost.name) && (
+                <button type="button" className="btn btn-quiet" onClick={resetGhost}>Скасувати</button>
+              )}
+              <button className="btn btn-uv" disabled={saving}>{saving ? 'Зберігаємо…' : editingGhost ? 'Зберегти зміни' : 'Додати привида'}</button>
+            </div>
+          </form>
+          <div className="admin-preview">
+            <p className="muted">Так картка виглядатиме на сайті</p>
+            <GhostCard ghost={{ ...ghost, name: ghost.name || 'Назва привида', hunt: ghost.hunt || '—' }} admin={null} showDesc />
+          </div>
+        </div>
+      ) : (
+        <div className="admin-split">
+          <form className="panel form" onSubmit={saveItem}>
+            <h2>{editingEquipment ? `Редагування: ${editingEquipment.name}` : 'Нове спорядження'}</h2>
+            <label>
+              Назва
+              <input required value={item.name} onChange={(e) => setItem({ ...item, name: e.target.value })} placeholder="Термометр" />
+            </label>
+            <div className="form-row">
+              <label>
+                Емодзі
+                <input value={item.icon} onChange={(e) => setItem({ ...item, icon: e.target.value })} placeholder="🌡️" />
+              </label>
+              <label>
+                Фото: файл із public/items або посилання
+                <input value={item.image} onChange={(e) => setItem({ ...item, image: e.target.value })} placeholder="thermometer.png" />
+              </label>
+            </div>
+            <label>
+              Опис
+              <span className="format-bar">
+                <button type="button" onClick={() => wrap('<b>', '</b>')}><b>Ж</b></button>
+                <button type="button" onClick={() => wrap('<i>', '</i>')}><i>К</i></button>
+                <button type="button" onClick={() => wrap('<br>', '')}>↵</button>
+                <button type="button" onClick={() => wrap('<ul>\n  <li>', '</li>\n</ul>')}>Список</button>
+                <button type="button" onClick={() => wrap('<strong style="color: var(--uv)">', '</strong>')} style={{ color: 'var(--uv)' }}>Рівень</button>
+                <button type="button" onClick={() => wrap('<span style="color: #ff6a5e">', '</span>')} style={{ color: '#ff6a5e' }}>Червоний</button>
+                <button type="button" onClick={() => wrap('<span style="color: #7fe3a8">', '</span>')} style={{ color: '#7fe3a8' }}>Зелений</button>
+              </span>
+              <textarea ref={descRef} rows={7} value={item.desc} onChange={(e) => setItem({ ...item, desc: e.target.value })} />
+            </label>
+            <div className="row-end">
+              {(editingEquipment || item.name) && (
+                <button type="button" className="btn btn-quiet" onClick={resetItem}>Скасувати</button>
+              )}
+              <button className="btn btn-uv" disabled={saving}>{saving ? 'Зберігаємо…' : editingEquipment ? 'Зберегти зміни' : 'Додати спорядження'}</button>
+            </div>
+          </form>
+          <div className="admin-preview">
+            <p className="muted">Попередній перегляд опису</p>
+            <article className="gear">
+              <div className="gear-body">
+                <h3><span aria-hidden="true">{item.icon}</span> {item.name || 'Назва предмета'}</h3>
+                <div className="gear-desc" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.desc) }} />
+              </div>
+            </article>
+          </div>
+        </div>
+      )}
+
+      {data.source === 'local' && <p className="muted">Зараз сайт показує вбудований довідник, тому кнопки «Редагувати» на картках працюватимуть лише для записів, які є в базі.</p>}
     </div>
   );
-};
+}
