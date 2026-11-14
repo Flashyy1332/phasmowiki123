@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
+import { useI18n } from '../lib/i18n';
 
 export interface PaletteItem {
   id: string;
   group: string;
   title: string;
   hint?: string;
+  /** Показувати у списку, коли пошуковий запит порожній. */
+  top?: boolean;
   run: () => void;
 }
 
@@ -13,6 +16,7 @@ export function CommandPalette({ open, onClose, items }: { open: boolean; onClos
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (open) {
@@ -23,7 +27,7 @@ export function CommandPalette({ open, onClose, items }: { open: boolean; onClos
 
   const shown = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const list = needle ? items.filter((i) => `${i.title} ${i.hint || ''}`.toLowerCase().includes(needle)) : items.filter((i) => i.group === 'Розділи');
+    const list = needle ? items.filter((i) => `${i.title} ${i.hint || ''}`.toLowerCase().includes(needle)) : items.filter((i) => i.top);
     return list.slice(0, 40);
   }, [items, query]);
 
@@ -41,13 +45,13 @@ export function CommandPalette({ open, onClose, items }: { open: boolean; onClos
 
   return (
     <div className="overlay overlay-top" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="palette" role="dialog" aria-label="Пошук по сайту">
+      <div className="palette" role="dialog" aria-label={t('palette.aria')}>
         <label className="palette-input">
           <Search size={18} />
           <input
             autoFocus
             value={query}
-            placeholder="Привид, предмет або розділ…"
+            placeholder={t('palette.placeholder')}
             onChange={(e) => {
               setQuery(e.target.value);
               setActive(0);
@@ -66,7 +70,7 @@ export function CommandPalette({ open, onClose, items }: { open: boolean; onClos
           <kbd>Esc</kbd>
         </label>
         <ul ref={listRef}>
-          {shown.length === 0 && <li className="palette-empty">Нічого не знайдено за запитом «{query}»</li>}
+          {shown.length === 0 && <li className="palette-empty">{t('palette.empty', { q: query })}</li>}
           {shown.map((item, i) => (
             <li key={item.id}>
               <button className={i === active ? 'is-active' : ''} onMouseEnter={() => setActive(i)} onClick={() => run(item)}>

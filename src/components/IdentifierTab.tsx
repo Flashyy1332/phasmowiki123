@@ -4,6 +4,7 @@ import { EVIDENCES } from '../data';
 import { Ghost } from '../types';
 import { EVIDENCE_ICONS, SpeedClass, matchesSpeed, maxHuntThreshold } from '../lib/ghostMeta';
 import { useStored } from '../lib/util';
+import { Key, useI18n } from '../lib/i18n';
 import { GhostCard } from './GhostCard';
 import type { AdminActions } from '../App';
 
@@ -18,13 +19,14 @@ interface Journal {
 
 const EMPTY: Journal = { evidence: {}, speeds: [], sanity: 0, ruledOut: [] };
 
-const SPEEDS: { id: SpeedClass; label: string; hint: string }[] = [
-  { id: 'slow', label: 'Повільний', hint: 'повільніший за звичайний крок' },
-  { id: 'normal', label: 'Звичайний', hint: 'приблизно 1.7 м/с' },
-  { id: 'fast', label: 'Швидкий', hint: 'швидший без прямої видимості' },
+const SPEEDS: { id: SpeedClass; label: Key; hint: Key }[] = [
+  { id: 'slow', label: 'speed.slow', hint: 'speed.slow.hint' },
+  { id: 'normal', label: 'speed.normal', hint: 'speed.normal.hint' },
+  { id: 'fast', label: 'speed.fast', hint: 'speed.fast.hint' },
 ];
 
 export function IdentifierTab({ ghosts, admin }: { ghosts: Ghost[]; admin: AdminActions | null }) {
+  const { t, gName, ev } = useI18n();
   const [journal, setJournal] = useStored<Journal>('phasmo.journal', EMPTY);
   const yes = useMemo(() => EVIDENCES.filter((e) => journal.evidence[e] === 'yes'), [journal.evidence]);
   const no = useMemo(() => EVIDENCES.filter((e) => journal.evidence[e] === 'no'), [journal.evidence]);
@@ -83,23 +85,21 @@ export function IdentifierTab({ ghosts, admin }: { ghosts: Ghost[]; admin: Admin
 
   const verdict =
     suspects.length === 1
-      ? `Це ${suspects[0].name}`
+      ? t('verdict.is', { name: gName(suspects[0]) })
       : suspects.length === 0
-        ? 'Жоден привид не підходить'
-        : `Підозрюваних: ${suspects.length}`;
+        ? t('verdict.none')
+        : t('verdict.count', { n: suspects.length });
 
   return (
     <div className="identifier">
-      <aside className="journal" aria-label="Журнал доказів">
+      <aside className="journal" aria-label={t('journal.title')}>
         <div className="journal-head">
-          <h2>Журнал доказів</h2>
+          <h2>{t('journal.title')}</h2>
           <button className="btn btn-quiet" onClick={reset} disabled={!dirty}>
-            <RotateCcw size={15} /> Скинути
+            <RotateCcw size={15} /> {t('common.reset')}
           </button>
         </div>
-        <p className="journal-help">
-          Натисніть раз — доказ <b className="c-ok">знайдено</b>, двічі — <b className="c-no">виключено</b>, тричі — очистити.
-        </p>
+        <p className="journal-help" dangerouslySetInnerHTML={{ __html: t('journal.help') }} />
 
         <ul className="evidence-list">
           {EVIDENCES.map((e, i) => {
@@ -110,7 +110,7 @@ export function IdentifierTab({ ghosts, admin }: { ghosts: Ghost[]; admin: Admin
                 <button className={`evidence ${state ? `is-${state}` : ''}`} disabled={disabled} onClick={() => cycle(e)} aria-pressed={state === 'yes'}>
                   <span className="evidence-box">{state === 'yes' ? <Check size={16} /> : state === 'no' ? <X size={16} /> : null}</span>
                   <span className="evidence-icon" aria-hidden="true">{EVIDENCE_ICONS[e]}</span>
-                  <span className="evidence-name">{e}</span>
+                  <span className="evidence-name">{ev(e)}</span>
                   <kbd>{i + 1}</kbd>
                 </button>
               </li>
@@ -119,21 +119,21 @@ export function IdentifierTab({ ghosts, admin }: { ghosts: Ghost[]; admin: Admin
         </ul>
 
         <div className="journal-block">
-          <h3>Швидкість під час полювання</h3>
+          <h3>{t('journal.speedTitle')}</h3>
           <div className="chips">
             {SPEEDS.map((s) => (
-              <button key={s.id} className={`chip ${journal.speeds.includes(s.id) ? 'is-on' : ''}`} onClick={() => toggleSpeed(s.id)} title={s.hint} aria-pressed={journal.speeds.includes(s.id)}>
-                {s.label}
+              <button key={s.id} className={`chip ${journal.speeds.includes(s.id) ? 'is-on' : ''}`} onClick={() => toggleSpeed(s.id)} title={t(s.hint)} aria-pressed={journal.speeds.includes(s.id)}>
+                {t(s.label)}
               </button>
             ))}
           </div>
-          <p className="journal-hint">Позначте все, що бачили: привид міг бути і повільним, і швидким.</p>
+          <p className="journal-hint">{t('journal.speedHint')}</p>
         </div>
 
         <div className="journal-block">
           <h3>
-            Глузд під час першого полювання
-            <output>{journal.sanity === 0 ? 'не знаю' : `від ${journal.sanity}%`}</output>
+            {t('journal.sanityTitle')}
+            <output>{journal.sanity === 0 ? t('journal.sanityUnknown') : t('journal.sanityFrom', { n: journal.sanity })}</output>
           </h3>
           <input
             type="range"
@@ -142,9 +142,9 @@ export function IdentifierTab({ ghosts, admin }: { ghosts: Ghost[]; admin: Admin
             step={5}
             value={journal.sanity}
             onChange={(e) => setJournal((j) => ({ ...j, sanity: Number(e.target.value) }))}
-            aria-label="Середній глузд команди під час першого полювання"
+            aria-label={t('journal.sanityAria')}
           />
-          <p className="journal-hint">Якщо привид напав при високому глузді, пізні мисливці відпадають.</p>
+          <p className="journal-hint">{t('journal.sanityHint')}</p>
         </div>
       </aside>
 
@@ -153,8 +153,8 @@ export function IdentifierTab({ ghosts, admin }: { ghosts: Ghost[]; admin: Admin
           <h1 className={suspects.length === 1 ? 'is-found' : suspects.length === 0 ? 'is-empty' : ''}>{verdict}</h1>
           <p className="muted">
             {suspects.length === 0
-              ? 'Перевірте позначки — можливо, якийсь доказ виключено помилково.'
-              : `Відсіяно ${eliminated + crossed.length} з ${ghosts.length}. Хрестик на картці викреслює привида вручну.`}
+              ? t('results.checkMarks')
+              : t('results.filtered', { n: eliminated + crossed.length, total: ghosts.length })}
           </p>
         </div>
 
@@ -166,11 +166,11 @@ export function IdentifierTab({ ghosts, admin }: { ghosts: Ghost[]; admin: Admin
 
         {crossed.length > 0 && (
           <div className="crossed">
-            <h3>Викреслено вручну</h3>
+            <h3>{t('crossed.title')}</h3>
             <div className="chips">
               {crossed.map((g) => (
-                <button key={g.name} className="chip is-struck" onClick={() => toggleRuleOut(g.name)} title="Повернути до підозрюваних">
-                  {g.name}
+                <button key={g.name} className="chip is-struck" onClick={() => toggleRuleOut(g.name)} title={t('crossed.restore')}>
+                  {gName(g)}
                 </button>
               ))}
             </div>

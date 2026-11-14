@@ -176,6 +176,7 @@ button.chip:hover { border-color: var(--uv); }
 @keyframes led { 0%, 70% { opacity: 1; } 71%, 100% { opacity: 0.25; } }
 
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
+.lang-switch { font-weight: 600; letter-spacing: 0.04em; }
 .search-trigger {
   display: flex;
   align-items: center;
@@ -767,6 +768,8 @@ input[type='range'] { width: 100%; accent-color: var(--uv); }
   .brand-name { font-size: 1.1rem; }
   .search-trigger { min-width: 0; padding: 8px 10px; }
   .search-trigger span, .search-trigger kbd, .status-text, .chat-trigger span, .topbar-actions > .btn-quiet span { display: none; }
+  .topbar-actions > .lang-switch span { display: inline; }
+  .lang-switch svg { display: none; }
   .status-pill { padding: 12px; }
   .topbar-actions { gap: 6px; }
   .tabs { padding: 0 8px; }

@@ -1,3 +1,5 @@
+import type { EquipmentText, GhostText } from './lib/content';
+
 export interface Ghost {
   name: string;
   isNew?: boolean;
@@ -7,6 +9,8 @@ export interface Ghost {
   strength: string;
   weakness: string;
   test: string;
+  /** Англійський переклад, якщо він є для цього привида. */
+  en?: GhostText;
 }
 
 export interface Equipment {
@@ -14,4 +18,6 @@ export interface Equipment {
   icon: string;
   image: string;
   desc: string;
+  /** Англійський переклад, якщо він є для цього предмета. */
+  en?: EquipmentText;
 }

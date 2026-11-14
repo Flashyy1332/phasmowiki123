@@ -3,13 +3,14 @@ import { ArrowRight, Flame } from 'lucide-react';
 import { Ghost } from '../types';
 import { FAKE_EVIDENCE, isMimic } from '../lib/ghostMeta';
 import { useStored } from '../lib/util';
+import { Key, useI18n } from '../lib/i18n';
 
 type Mode = 'evidence' | 'weakness' | 'test';
 
-const MODES: { id: Mode; label: string; prompt: string }[] = [
-  { id: 'evidence', label: 'За доказами', prompt: 'У якого привида такі докази?' },
-  { id: 'weakness', label: 'За слабкістю', prompt: 'Чия це слабкість?' },
-  { id: 'test', label: 'За тестом', prompt: 'Кого так перевіряють?' },
+const MODES: { id: Mode; label: Key; prompt: Key }[] = [
+  { id: 'evidence', label: 'quiz.mode.evidence', prompt: 'quiz.prompt.evidence' },
+  { id: 'weakness', label: 'quiz.mode.weakness', prompt: 'quiz.prompt.weakness' },
+  { id: 'test', label: 'quiz.mode.test', prompt: 'quiz.prompt.test' },
 ];
 
 interface Question {
@@ -19,9 +20,10 @@ interface Question {
 
 const shuffle = <T,>(list: T[]) => [...list].sort(() => Math.random() - 0.5);
 
-/** Прибирає з підказки назву привида, щоб відповідь не читалася з тексту. */
+/** Прибирає з підказки назву привида (в обох мовах), щоб відповідь не читалася з тексту. */
 function hideName(text: string, ghost: Ghost) {
-  const words = ghost.name.replace(/[()]/g, ' ').split(/\s+/).filter((w) => w.length > 2);
+  const STOP = new Set(['the']);
+  const words = ghost.name.replace(/[()]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w.toLowerCase()));
   let out = text;
   for (const w of words) out = out.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').slice(0, Math.max(3, w.length - 1)) + '[а-яіїєґa-z]*', 'gi'), '███');
   return out;
@@ -35,6 +37,7 @@ function makeQuestion(ghosts: Ghost[], previous?: string): Question {
 }
 
 export function QuizTab({ ghosts }: { ghosts: Ghost[] }) {
+  const { t, lang, gName, gField, ev } = useI18n();
   const [mode, setMode] = useState<Mode>('evidence');
   const [question, setQuestion] = useState<Question | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
@@ -80,19 +83,19 @@ export function QuizTab({ ghosts }: { ghosts: Ghost[] }) {
       return (
         <ul className="evidence-tags quiz-evidence">
           {g.evidence.map((e) => (
-            <li key={e} className={isMimic(g) && e === FAKE_EVIDENCE ? 'is-fake' : ''}>{e}</li>
+            <li key={e} className={isMimic(g) && e === FAKE_EVIDENCE ? 'is-fake' : ''}>{ev(e)}</li>
           ))}
         </ul>
       );
     }
-    return <blockquote className="quiz-quote">{hideName(mode === 'weakness' ? g.weakness : g.test, g)}</blockquote>;
-  }, [question, mode]);
+    return <blockquote className="quiz-quote">{hideName(gField(g, mode === 'weakness' ? 'weakness' : 'test'), g)}</blockquote>;
+  }, [question, mode, lang]);
 
   if (!playable || !question) {
     return (
       <div className="empty">
-        <h2>Замало привидів для тренування</h2>
-        <p>Потрібно щонайменше чотири записи в довіднику.</p>
+        <h2>{t('quiz.tooFewTitle')}</h2>
+        <p>{t('quiz.tooFewText')}</p>
       </div>
     );
   }
@@ -102,27 +105,27 @@ export function QuizTab({ ghosts }: { ghosts: Ghost[] }) {
   return (
     <div className="quiz">
       <div className="page-head">
-        <h1>Тренування</h1>
-        <p className="muted">Перевірте, чи впізнаєте привида без журналу. Відповідати можна клавішами 1–4.</p>
+        <h1>{t('quiz.title')}</h1>
+        <p className="muted">{t('quiz.sub')}</p>
       </div>
 
       <div className="quiz-bar">
         <div className="chips">
           {MODES.map((m) => (
             <button key={m.id} className={`chip ${mode === m.id ? 'is-on' : ''}`} onClick={() => setMode(m.id)} aria-pressed={mode === m.id}>
-              {m.label}
+              {t(m.label)}
             </button>
           ))}
         </div>
         <div className="quiz-score">
-          <span><Flame size={16} /> Серія <b>{streak}</b></span>
-          <span>Рекорд <b>{best}</b></span>
-          <span>Правильно <b>{stats.right}/{stats.total}</b></span>
+          <span><Flame size={16} /> {t('quiz.streak')} <b>{streak}</b></span>
+          <span>{t('quiz.best')} <b>{best}</b></span>
+          <span>{t('quiz.correct')} <b>{stats.right}/{stats.total}</b></span>
         </div>
       </div>
 
       <section className="panel quiz-card">
-        <h2>{MODES.find((m) => m.id === mode)!.prompt}</h2>
+        <h2>{t(MODES.find((m) => m.id === mode)!.prompt)}</h2>
         {clue}
 
         <div className="quiz-options">
@@ -131,7 +134,7 @@ export function QuizTab({ ghosts }: { ghosts: Ghost[] }) {
             return (
               <button key={g.name} className={`quiz-option ${state}`} onClick={() => choose(g.name)} disabled={!!picked}>
                 <kbd>{i + 1}</kbd>
-                {g.name}
+                {gName(g)}
               </button>
             );
           })}
@@ -140,11 +143,11 @@ export function QuizTab({ ghosts }: { ghosts: Ghost[] }) {
         {picked && (
           <div className={`quiz-result ${right ? 'is-right' : 'is-wrong'}`}>
             <div>
-              <b>{right ? 'Правильно.' : `Ні, це ${question.answer.name}.`}</b>
-              <p>{question.answer.desc || question.answer.strength}</p>
+              <b>{right ? t('quiz.right') : t('quiz.wrong', { name: gName(question.answer) })}</b>
+              <p>{gField(question.answer, 'desc') || gField(question.answer, 'strength')}</p>
             </div>
             <button className="btn btn-uv" onClick={next} autoFocus>
-              Наступне <ArrowRight size={16} />
+              {t('quiz.next')} <ArrowRight size={16} />
             </button>
           </div>
         )}

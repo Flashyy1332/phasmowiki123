@@ -1,4 +1,6 @@
 import { Ghost } from '../types';
+import { DEFAULT_SPEED_NOTE_EN, SPEED_NOTES_EN } from './content';
+import type { Lang } from './i18n';
 
 /**
  * Швидкість привидів під час полювання (м/с). Базова швидкість — 1.7.
@@ -35,8 +37,11 @@ export function ghostKey(name: string): string {
   return (match ? match[1] : name).trim().toLowerCase();
 }
 
-export function speedOf(ghost: Ghost): SpeedInfo {
-  return SPEEDS[ghostKey(ghost.name)] || { min: BASE_SPEED, max: BASE_SPEED, normal: true, note: 'стандартна 1.7, прискорюється в полі зору' };
+export function speedOf(ghost: Ghost, lang: Lang = 'uk'): SpeedInfo {
+  const key = ghostKey(ghost.name);
+  const info = SPEEDS[key] || { min: BASE_SPEED, max: BASE_SPEED, normal: true, note: 'стандартна 1.7, прискорюється в полі зору' };
+  if (lang !== 'en') return info;
+  return { ...info, note: SPEED_NOTES_EN[key] || DEFAULT_SPEED_NOTE_EN };
 }
 
 export type SpeedClass = 'slow' | 'normal' | 'fast';

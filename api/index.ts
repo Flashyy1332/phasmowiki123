@@ -397,15 +397,30 @@ const SYSTEM_PROMPT =
   "глузду, швидкість привидів, кількість доказів, укриття, множник нагороди). Відповідай коротко і по суті, українською мовою, " +
   "використовуй markdown (списки, жирний текст). Якщо не впевнений у точному числі — так і скажи.";
 
+const SYSTEM_PROMPT_EN =
+  "You are an expert on the game Phasmophobia and the assistant of the PhasmoWiki site. Help players identify the ghost from " +
+  "evidence and behavior, survive hunts, use equipment, and build custom difficulties (starting sanity, sanity restoration, " +
+  "ghost speed, number of evidences, hiding spots, reward multiplier). Answer briefly and to the point, in English, " +
+  "using markdown (lists, bold text). If you are not sure about an exact number, say so. Use the official English names " +
+  "of ghosts, evidence and equipment.";
+
+/** Мова відповіді асистента — та, що вибрана в інтерфейсі сайту. */
+const chatLang = (value: unknown): "uk" | "en" => (value === "en" ? "en" : "uk");
+
 app.post("/api/chat", requireUser, async (req: AuthedRequest, res) => {
+  const lang = chatLang(req.body?.lang);
+  const en = lang === "en";
   try {
     if (!ai) {
-      return res.status(503).json({ error: "ШІ-асистент не налаштований: додайте GEMINI_API_KEY у файл .env.", code: "ai_not_configured" });
+      return res.status(503).json({
+        error: en ? "The AI assistant is not configured: add GEMINI_API_KEY to the .env file." : "ШІ-асистент не налаштований: додайте GEMINI_API_KEY у файл .env.",
+        code: "ai_not_configured",
+      });
     }
     const message = String(req.body.message || "").trim().slice(0, 4000);
-    if (!message) return res.status(400).json({ error: "Напишіть повідомлення." });
+    if (!message) return res.status(400).json({ error: en ? "Write a message." : "Напишіть повідомлення." });
     if (!chatAllowed(req.userEmail!)) {
-      return res.status(429).json({ error: "Забагато запитів. Зачекайте хвилину і спробуйте знову." });
+      return res.status(429).json({ error: en ? "Too many requests. Wait a minute and try again." : "Забагато запитів. Зачекайте хвилину і спробуйте знову." });
     }
 
     const history = (Array.isArray(req.body.previousMessages) ? req.body.previousMessages : []).slice(-20);
@@ -419,14 +434,17 @@ app.post("/api/chat", requireUser, async (req: AuthedRequest, res) => {
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
       contents,
-      config: { systemInstruction: SYSTEM_PROMPT },
+      config: { systemInstruction: en ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT },
     });
-    res.json({ text: response.text || "Не вдалося сформувати відповідь. Спробуйте переформулювати запит." });
+    res.json({ text: response.text || (en ? "Could not produce an answer. Try rephrasing your question." : "Не вдалося сформувати відповідь. Спробуйте переформулювати запит.") });
   } catch (error: any) {
     console.error("Gemini API Error:", error?.message || error);
     const status = Number(error?.status) || 500;
     res.status(status >= 400 && status < 600 ? status : 500).json({
-      error: status === 503 || status === 429 ? "Модель зараз перевантажена. Спробуйте за хвилину." : "ШІ не зміг відповісти. Спробуйте ще раз.",
+      error:
+        status === 503 || status === 429
+          ? en ? "The model is overloaded right now. Try again in a minute." : "Модель зараз перевантажена. Спробуйте за хвилину."
+          : en ? "The AI could not answer. Try again." : "ШІ не зміг відповісти. Спробуйте ще раз.",
     });
   }
 });

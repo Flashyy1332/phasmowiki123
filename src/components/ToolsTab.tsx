@@ -3,10 +3,12 @@ import { Pause, Play, RotateCcw } from 'lucide-react';
 import { Ghost } from '../types';
 import { BASE_SPEED, bpmToSpeed, speedOf } from '../lib/ghostMeta';
 import { beep } from '../lib/util';
+import { useI18n } from '../lib/i18n';
 
 /* ----------------------- Вимірювач темпу кроків ----------------------- */
 
 function StepMeter({ ghosts }: { ghosts: Ghost[] }) {
+  const { t, lang, gName } = useI18n();
   const [taps, setTaps] = useState<number[]>([]);
 
   const tap = () =>
@@ -40,19 +42,19 @@ function StepMeter({ ghosts }: { ghosts: Ghost[] }) {
     });
   }, [ghosts, speed]);
 
-  const verdict = !speed ? '' : speed < BASE_SPEED - 0.2 ? 'повільніший за звичайного' : speed > BASE_SPEED + 0.2 ? 'швидший за звичайного' : 'звичайна швидкість';
+  const verdict = !speed ? '' : speed < BASE_SPEED - 0.2 ? t('step.slow') : speed > BASE_SPEED + 0.2 ? t('step.fast') : t('step.normal');
   const fill = speed ? Math.min(100, (speed / 3.2) * 100) : 0;
 
   return (
     <section className="panel">
-      <h2>Темп кроків</h2>
-      <p className="muted">Стукайте в такт крокам привида — кнопкою або пробілом. Потрібно щонайменше три удари.</p>
+      <h2>{t('step.title')}</h2>
+      <p className="muted">{t('step.help')}</p>
 
       <div className="stepmeter">
         <button className="tap" onClick={tap}>
           <span className="tap-value">{speed ? speed.toFixed(2) : '—'}</span>
-          <span className="tap-unit">м/с</span>
-          <span className="tap-sub">{bpm ? `${bpm} кроків/хв` : 'стукайте тут'}</span>
+          <span className="tap-unit">{t('unit.ms')}</span>
+          <span className="tap-sub">{bpm ? t('step.bpm', { n: bpm }) : t('step.tapHere')}</span>
         </button>
 
         <div className="stepmeter-side">
@@ -63,20 +65,20 @@ function StepMeter({ ghosts }: { ghosts: Ghost[] }) {
           {speed ? (
             <>
               <p className="stepmeter-verdict">{verdict}</p>
-              <p className="muted">Підходять за швидкістю ({matches.length}):</p>
+              <p className="muted">{t('step.matches', { n: matches.length })}</p>
               <div className="chips">
                 {matches.map((g) => (
-                  <span key={g.name} className="chip is-static" title={speedOf(g).note}>
-                    {g.name}
+                  <span key={g.name} className="chip is-static" title={speedOf(g, lang).note}>
+                    {gName(g)}
                   </span>
                 ))}
               </div>
             </>
           ) : (
-            <p className="muted">Шкала показує швидкість відносно звичайного привида (1.7 м/с). Значення приблизні.</p>
+            <p className="muted">{t('step.scaleHelp')}</p>
           )}
           <button className="btn btn-quiet" onClick={() => setTaps([])} disabled={!taps.length}>
-            <RotateCcw size={15} /> Почати заново
+            <RotateCcw size={15} /> {t('step.restart')}
           </button>
         </div>
       </div>
@@ -94,6 +96,7 @@ interface Mark {
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 function MarkTimer({ title, text, marks, loop }: { title: string; text: string; marks: Mark[]; loop?: boolean }) {
+  const { t } = useI18n();
   const total = marks[marks.length - 1].at;
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
@@ -155,10 +158,10 @@ function MarkTimer({ title, text, marks, loop }: { title: string; text: string; 
       </div>
 
       <div className="timer-foot">
-        <p>{next ? `Далі: ${next.label} через ${fmt(Math.ceil(next.at - elapsed))}` : 'Час вийшов'}</p>
+        <p>{next ? t('timer.next', { label: next.label, time: fmt(Math.ceil(next.at - elapsed)) }) : t('timer.over')}</p>
         <div className="row-end">
           <button className="btn btn-quiet" onClick={reset} disabled={elapsed === 0}>
-            <RotateCcw size={15} /> Скинути
+            <RotateCcw size={15} /> {t('common.reset')}
           </button>
           <button
             className="btn btn-uv"
@@ -170,7 +173,7 @@ function MarkTimer({ title, text, marks, loop }: { title: string; text: string; 
               setRunning((r) => !r);
             }}
           >
-            {running ? <Pause size={15} /> : <Play size={15} />} {running ? 'Пауза' : elapsed > 0 && elapsed < total ? 'Продовжити' : 'Запустити'}
+            {running ? <Pause size={15} /> : <Play size={15} />} {running ? t('timer.pause') : elapsed > 0 && elapsed < total ? t('timer.resume') : t('timer.start')}
           </button>
         </div>
       </div>
@@ -179,39 +182,40 @@ function MarkTimer({ title, text, marks, loop }: { title: string; text: string; 
 }
 
 export function ToolsTab({ ghosts }: { ghosts: Ghost[] }) {
+  const { t } = useI18n();
   return (
     <div className="tools">
       <div className="page-head">
-        <h1>Інструменти мисливця</h1>
-        <p className="muted">Тримайте відкритими під час гри: таймери подають звуковий сигнал на кожній позначці.</p>
+        <h1>{t('tools.title')}</h1>
+        <p className="muted">{t('tools.sub')}</p>
       </div>
 
       <StepMeter ghosts={ghosts} />
 
       <section className="panel">
-        <h2>Таймери</h2>
+        <h2>{t('timers.title')}</h2>
         <div className="timers">
           <MarkTimer
-            title="Після пахощів"
-            text="Запустіть, коли обкурили привида. Якщо він нападе раніше за звичайну позначку — це Демон; якщо мовчить довше — Дух."
+            title={t('timer.incense.title')}
+            text={t('timer.incense.text')}
             marks={[
-              { at: 60, label: 'Демон 1:00' },
-              { at: 90, label: 'звичайні 1:30' },
-              { at: 180, label: 'Дух 3:00' },
+              { at: 60, label: t('timer.incense.m1') },
+              { at: 90, label: t('timer.incense.m2') },
+              { at: 180, label: t('timer.incense.m3') },
             ]}
           />
           <MarkTimer
-            title="Перерва між полюваннями"
-            text="Запустіть, коли полювання закінчилось. До позначки привид напасти не може."
+            title={t('timer.cooldown.title')}
+            text={t('timer.cooldown.text')}
             marks={[
-              { at: 20, label: 'Демон 0:20' },
-              { at: 25, label: 'інші 0:25' },
+              { at: 20, label: t('timer.cooldown.m1') },
+              { at: 25, label: t('timer.cooldown.m2') },
             ]}
           />
           <MarkTimer
-            title="Цикл Обамбо"
-            text="Обамбо змінює стан кожні дві хвилини. Таймер іде по колу — слухайте, чи збігається зміна швидкості із сигналом."
-            marks={[{ at: 120, label: 'зміна стану 2:00' }]}
+            title={t('timer.obambo.title')}
+            text={t('timer.obambo.text')}
+            marks={[{ at: 120, label: t('timer.obambo.m1') }]}
             loop
           />
         </div>

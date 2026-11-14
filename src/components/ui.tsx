@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import { useI18n } from '../lib/i18n';
 
 /* ------------------------------ Сповіщення ------------------------------ */
 
@@ -60,13 +61,14 @@ export function Modal({ open, onClose, children, label, className = '' }: { open
 }
 
 export function ConfirmDialog({ open, title, text, confirmLabel, onConfirm, onCancel }: { open: boolean; title: string; text: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void }) {
+  const { t } = useI18n();
   return (
     <Modal open={open} onClose={onCancel} label={title} className="modal-small">
       <h3>{title}</h3>
       <p>{text}</p>
       <div className="row-end">
         <button className="btn btn-quiet" onClick={onCancel} autoFocus>
-          Скасувати
+          {t('common.cancel')}
         </button>
         <button className="btn btn-danger" onClick={onConfirm}>
           {confirmLabel}
@@ -77,19 +79,21 @@ export function ConfirmDialog({ open, title, text, confirmLabel, onConfirm, onCa
 }
 
 export function CloseButton({ onClick }: { onClick: () => void }) {
+  const { t } = useI18n();
   return (
-    <button className="icon-btn" onClick={onClick} aria-label="Закрити">
+    <button className="icon-btn" onClick={onClick} aria-label={t('common.close')}>
       <X size={18} />
     </button>
   );
 }
 
 export function SearchField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  const { t } = useI18n();
   return (
     <label className="field-search">
       <input type="search" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
       {value && (
-        <button type="button" className="icon-btn" onClick={() => onChange('')} aria-label="Очистити пошук">
+        <button type="button" className="icon-btn" onClick={() => onChange('')} aria-label={t('common.clearSearch')}>
           <X size={16} />
         </button>
       )}

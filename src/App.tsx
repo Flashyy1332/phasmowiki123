@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { BookOpen, Database, Ghost as GhostIcon, GraduationCap, LogIn, LogOut, RefreshCw, Search, Settings, Sparkles, Timer, Wrench, ScanSearch } from 'lucide-react';
+import { BookOpen, Database, Ghost as GhostIcon, GraduationCap, Languages, LogIn, LogOut, RefreshCw, Search, Settings, Sparkles, Timer, Wrench, ScanSearch } from 'lucide-react';
 import { auth, signInWithGoogle, logOut } from './lib/firebase';
-import { api, loadWikiData, WikiData, LOCAL_GHOSTS, LOCAL_EQUIPMENT } from './lib/api';
+import { api, loadWikiData, sortGhosts, WikiData, LOCAL_GHOSTS, LOCAL_EQUIPMENT } from './lib/api';
+import { Key, useI18n } from './lib/i18n';
 import { Ghost, Equipment } from './types';
 import { IdentifierTab } from './components/IdentifierTab';
 import { GhostsTab } from './components/GhostsTab';
@@ -17,13 +18,13 @@ import { ConfirmDialog, ToastProvider, useToast } from './components/ui';
 
 export type TabType = 'identifier' | 'ghosts' | 'equipment' | 'mechanics' | 'tools' | 'quiz' | 'admin';
 
-const TABS: { id: TabType; label: string; icon: React.ReactNode }[] = [
-  { id: 'identifier', label: 'Визначник', icon: <ScanSearch size={17} /> },
-  { id: 'ghosts', label: 'Привиди', icon: <GhostIcon size={17} /> },
-  { id: 'equipment', label: 'Спорядження', icon: <Wrench size={17} /> },
-  { id: 'mechanics', label: 'Механіки', icon: <BookOpen size={17} /> },
-  { id: 'tools', label: 'Інструменти', icon: <Timer size={17} /> },
-  { id: 'quiz', label: 'Тренування', icon: <GraduationCap size={17} /> },
+const TABS: { id: TabType; label: Key; icon: React.ReactNode }[] = [
+  { id: 'identifier', label: 'tab.identifier', icon: <ScanSearch size={17} /> },
+  { id: 'ghosts', label: 'tab.ghosts', icon: <GhostIcon size={17} /> },
+  { id: 'equipment', label: 'tab.equipment', icon: <Wrench size={17} /> },
+  { id: 'mechanics', label: 'tab.mechanics', icon: <BookOpen size={17} /> },
+  { id: 'tools', label: 'tab.tools', icon: <Timer size={17} /> },
+  { id: 'quiz', label: 'tab.quiz', icon: <GraduationCap size={17} /> },
 ];
 
 const tabFromHash = (): TabType => {
@@ -41,6 +42,7 @@ export default function App() {
 
 function Shell() {
   const toast = useToast();
+  const { t, lang, setLang, gName, eName, ev } = useI18n();
   const [tab, setTab] = useState<TabType>(tabFromHash);
   const [data, setData] = useState<WikiData>({ ghosts: LOCAL_GHOSTS, equipment: LOCAL_EQUIPMENT, source: 'local' });
   const [loading, setLoading] = useState(true);
@@ -112,15 +114,15 @@ function Shell() {
   const login = async () => {
     try {
       await signInWithGoogle();
-      toast('Ви увійшли в акаунт');
+      toast(t('auth.loggedIn'));
     } catch (error: any) {
       if (error?.code === 'auth/popup-closed-by-user' || error?.code === 'auth/cancelled-popup-request') return;
       toast(
         error?.code === 'auth/unauthorized-domain'
-          ? 'Цей домен не дозволено у Firebase. Додайте його в Authentication → Settings → Authorized domains.'
+          ? t('auth.errDomain')
           : error?.code === 'auth/popup-blocked'
-            ? 'Браузер заблокував вікно входу. Дозвольте спливаючі вікна для цього сайту.'
-            : 'Не вдалося увійти. Вимкніть блокувальник реклами і спробуйте ще раз.',
+            ? t('auth.errPopup')
+            : t('auth.errGeneric'),
         'error',
       );
     }
@@ -128,7 +130,7 @@ function Shell() {
 
   const logout = async () => {
     await logOut();
-    toast('Ви вийшли з акаунта');
+    toast(t('auth.loggedOut'));
   };
 
   const adminActions = useMemo(
@@ -158,38 +160,41 @@ function Shell() {
     setPendingDelete(null);
     try {
       await api(`/api/${kind}/${encodeURIComponent(name)}`, { method: 'DELETE' });
-      toast(`Видалено: ${name}`);
+      toast(t('toast.deleted', { name }));
       refresh();
     } catch (e: any) {
       toast(e.message, 'error');
     }
   };
 
+  // Привиди й спорядження в поточній мові; сортування за назвою теж залежить від мови.
+  const ghosts = useMemo(() => sortGhosts(data.ghosts, lang), [data.ghosts, lang]);
+
   const paletteItems = useMemo<PaletteItem[]>(
     () => [
-      ...TABS.map((t) => ({ id: `tab-${t.id}`, group: 'Розділи', title: t.label, run: () => go(t.id) })),
-      { id: 'chat', group: 'Розділи', title: 'ШІ-асистент', run: () => setChatOpen(true) },
-      ...data.ghosts.map((g) => ({
+      ...TABS.map((tabItem) => ({ id: `tab-${tabItem.id}`, group: t('palette.sections'), top: true, title: t(tabItem.label), run: () => go(tabItem.id) })),
+      { id: 'chat', group: t('palette.sections'), top: true, title: t('chat.title'), run: () => setChatOpen(true) },
+      ...ghosts.map((g) => ({
         id: `g-${g.name}`,
-        group: 'Привиди',
-        title: g.name,
-        hint: g.evidence.join(', '),
+        group: t('palette.ghosts'),
+        title: gName(g),
+        hint: g.evidence.map(ev).join(', '),
         run: () => {
-          setGhostQuery(g.name);
+          setGhostQuery(gName(g));
           go('ghosts');
         },
       })),
       ...data.equipment.map((e) => ({
         id: `e-${e.name}`,
-        group: 'Спорядження',
-        title: `${e.icon} ${e.name}`.trim(),
+        group: t('palette.gear'),
+        title: `${e.icon} ${eName(e)}`.trim(),
         run: () => {
-          setEquipmentQuery(e.name);
+          setEquipmentQuery(eName(e));
           go('equipment');
         },
       })),
     ],
-    [data, go],
+    [data.equipment, ghosts, go, lang],
   );
 
   const live = data.source === 'live';
@@ -198,7 +203,7 @@ function Shell() {
     <>
       <header className="topbar">
         <div className="topbar-row">
-          <button className="brand" onClick={() => go('identifier')} aria-label="PhasmoWiki — на головну">
+          <button className="brand" onClick={() => go('identifier')} aria-label={t('app.homeAria')}>
             <span className="brand-mark" aria-hidden="true">
               <i /><i /><i /><i /><i />
             </span>
@@ -208,7 +213,7 @@ function Shell() {
           <div className="topbar-actions">
             <button className="search-trigger" onClick={() => setPaletteOpen(true)}>
               <Search size={16} />
-              <span>Пошук</span>
+              <span>{t('search.label')}</span>
               <kbd>Ctrl K</kbd>
             </button>
 
@@ -219,36 +224,43 @@ function Shell() {
                 aria-expanded={statusOpen}
               >
                 <span className="status-dot" />
-                <span className="status-text">{loading ? 'З’єднання…' : live ? 'База онлайн' : 'Локальна копія'}</span>
+                <span className="status-text">{loading ? t('status.connecting') : live ? t('status.online') : t('status.local')}</span>
               </button>
               {statusOpen && (
-                <div className="status-pop" role="dialog" aria-label="Стан бази даних">
+                <div className="status-pop" role="dialog" aria-label={t('status.aria')}>
                   <p className="status-pop-title">
-                    <Database size={16} /> {live ? 'Дані з бази Supabase' : 'Показано вбудований довідник'}
+                    <Database size={16} /> {live ? t('status.titleLive') : t('status.titleLocal')}
                   </p>
                   <p>
                     {live
-                      ? `Завантажено привидів: ${data.ghosts.length}, предметів: ${data.equipment.length}.`
-                      : data.problem || 'База даних недоступна.'}
+                      ? t('status.loaded', { ghosts: data.ghosts.length, equipment: data.equipment.length })
+                      : data.problemKey
+                        ? t(data.problemKey)
+                        : data.problem || t('status.unavailable')}
                   </p>
-                  {!live && <p className="muted">Усі розділи працюють. Зміни з адмін-панелі з’являться, коли база відповість.</p>}
+                  {!live && <p className="muted">{t('status.localNote')}</p>}
                   <button
                     className="btn btn-quiet"
                     disabled={loading}
                     onClick={async () => {
                       const next = await refresh();
-                      toast(next.source === 'live' ? 'База відповіла — дані оновлено' : 'База досі недоступна', next.source === 'live' ? 'ok' : 'error');
+                      toast(next.source === 'live' ? t('status.recheckOk') : t('status.recheckFail'), next.source === 'live' ? 'ok' : 'error');
                     }}
                   >
-                    <RefreshCw size={15} className={loading ? 'spin' : ''} /> Перевірити ще раз
+                    <RefreshCw size={15} className={loading ? 'spin' : ''} /> {t('status.recheck')}
                   </button>
                 </div>
               )}
             </div>
 
+            <button className="btn btn-quiet lang-switch" onClick={() => setLang(lang === 'uk' ? 'en' : 'uk')} title={t('lang.switch')} aria-label={t('lang.switch')}>
+              <Languages size={16} />
+              <span>{t('lang.short')}</span>
+            </button>
+
             <button className="btn btn-uv chat-trigger" onClick={() => setChatOpen(true)}>
               <Sparkles size={16} />
-              <span>ШІ-асистент</span>
+              <span>{t('chat.title')}</span>
             </button>
 
             {user ? (
@@ -258,43 +270,43 @@ function Shell() {
                 ) : (
                   <span className="user-fallback">{(user.displayName || user.email || '?')[0]}</span>
                 )}
-                <button className="icon-btn" onClick={logout} title="Вийти" aria-label="Вийти">
+                <button className="icon-btn" onClick={logout} title={t('auth.logout')} aria-label={t('auth.logout')}>
                   <LogOut size={17} />
                 </button>
               </div>
             ) : (
               <button className="btn btn-quiet" onClick={login}>
                 <LogIn size={16} />
-                <span>Увійти</span>
+                <span>{t('auth.login')}</span>
               </button>
             )}
           </div>
         </div>
 
-        <nav className="tabs" aria-label="Розділи">
-          {TABS.map((t) => (
-            <button key={t.id} className={`tab ${tab === t.id ? 'is-active' : ''}`} onClick={() => go(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
-              {t.icon}
-              {t.label}
-              {t.id === 'ghosts' && <span className="tab-count">{data.ghosts.length}</span>}
+        <nav className="tabs" aria-label={t('nav.sections')}>
+          {TABS.map((tabItem) => (
+            <button key={tabItem.id} className={`tab ${tab === tabItem.id ? 'is-active' : ''}`} onClick={() => go(tabItem.id)} aria-current={tab === tabItem.id ? 'page' : undefined}>
+              {tabItem.icon}
+              {t(tabItem.label)}
+              {tabItem.id === 'ghosts' && <span className="tab-count">{data.ghosts.length}</span>}
             </button>
           ))}
           {isAdmin && (
             <button className={`tab ${tab === 'admin' ? 'is-active' : ''}`} onClick={() => go('admin')}>
               <Settings size={17} />
-              Адмін
+              {t('tab.admin')}
             </button>
           )}
         </nav>
       </header>
 
       <main className="page" key={tab}>
-        {tab === 'identifier' && <IdentifierTab ghosts={data.ghosts} admin={adminActions} />}
-        {tab === 'ghosts' && <GhostsTab ghosts={data.ghosts} admin={adminActions} query={ghostQuery} setQuery={setGhostQuery} />}
+        {tab === 'identifier' && <IdentifierTab ghosts={ghosts} admin={adminActions} />}
+        {tab === 'ghosts' && <GhostsTab ghosts={ghosts} admin={adminActions} query={ghostQuery} setQuery={setGhostQuery} />}
         {tab === 'equipment' && <EquipmentTab equipment={data.equipment} admin={adminActions} query={equipmentQuery} setQuery={setEquipmentQuery} />}
-        {tab === 'mechanics' && <MechanicsTab ghosts={data.ghosts} />}
-        {tab === 'tools' && <ToolsTab ghosts={data.ghosts} />}
-        {tab === 'quiz' && <QuizTab ghosts={data.ghosts} />}
+        {tab === 'mechanics' && <MechanicsTab ghosts={ghosts} />}
+        {tab === 'tools' && <ToolsTab ghosts={ghosts} />}
+        {tab === 'quiz' && <QuizTab ghosts={ghosts} />}
         {tab === 'admin' &&
           (isAdmin ? (
             <AdminTab
@@ -307,11 +319,11 @@ function Shell() {
             />
           ) : (
             <div className="empty">
-              <h2>Розділ для адміністраторів</h2>
-              <p>{user ? 'У цього акаунта немає прав адміністратора.' : 'Увійдіть через Google-акаунт адміністратора.'}</p>
+              <h2>{t('adminOnly.title')}</h2>
+              <p>{user ? t('adminOnly.noRights') : t('adminOnly.signIn')}</p>
               {!user && (
                 <button className="btn btn-uv" onClick={login}>
-                  <LogIn size={16} /> Увійти через Google
+                  <LogIn size={16} /> {t('auth.loginGoogle')}
                 </button>
               )}
             </div>
@@ -319,17 +331,17 @@ function Shell() {
       </main>
 
       <footer className="footer">
-        <p>Автори: Ковальчук Ростислав Ростиславович, Папірник Евеліна Романівна</p>
-        <p className="muted">Фанатський довідник. Phasmophobia належить Kinetic Games.</p>
+        <p>{t('footer.authors')}</p>
+        <p className="muted">{t('footer.disclaimer')}</p>
       </footer>
 
       <AIChat open={chatOpen} onClose={() => setChatOpen(false)} user={user} onLogin={login} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={paletteItems} />
       <ConfirmDialog
         open={!!pendingDelete}
-        title={pendingDelete?.kind === 'ghosts' ? 'Видалити привида?' : 'Видалити спорядження?'}
-        text={`«${pendingDelete?.name}» буде видалено з бази. Це не можна скасувати.`}
-        confirmLabel="Видалити"
+        title={pendingDelete?.kind === 'ghosts' ? t('confirm.deleteGhost') : t('confirm.deleteGear')}
+        text={t('confirm.text', { name: pendingDelete?.name ?? '' })}
+        confirmLabel={t('common.delete')}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
       />

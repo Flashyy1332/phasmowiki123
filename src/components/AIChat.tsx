@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import type { User } from 'firebase/auth';
 import { LogIn, Send, Sparkles, Trash2 } from 'lucide-react';
 import { api } from '../lib/api';
+import { useI18n, Key } from '../lib/i18n';
 import { CloseButton } from './ui';
 
 interface ChatMessage {
@@ -12,16 +13,12 @@ interface ChatMessage {
   failed?: boolean;
 }
 
-const IDEAS = [
-  'Зроби складність із множником x10, але щоб було реально вижити',
-  'Як відрізнити Ханту від Мороя без доказів?',
-  'Склади челендж на 0 доказів для трьох гравців',
-  'Що робити, якщо привид напав у першу хвилину?',
-];
+const IDEAS: Key[] = ['chat.idea1', 'chat.idea2', 'chat.idea3', 'chat.idea4'];
 
 const storageKey = (user: User) => `phasmo.chat.${user.uid}`;
 
 export function AIChat({ open, onClose, user, onLogin }: { open: boolean; onClose: () => void; user: User | null; onLogin: () => void }) {
+  const { t, lang } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -66,7 +63,7 @@ export function AIChat({ open, onClose, user, onLogin }: { open: boolean; onClos
     setInput('');
     setBusy(true);
     try {
-      const data = await api<{ text: string }>('/api/chat', { method: 'POST', body: { message, previousMessages: history } });
+      const data = await api<{ text: string }>('/api/chat', { method: 'POST', body: { message, previousMessages: history, lang } });
       setMessages((list) => [...list, { id: `${Date.now()}a`, role: 'assistant', text: data.text }]);
     } catch (e: any) {
       setMessages((list) => [...list, { id: `${Date.now()}e`, role: 'assistant', text: e.message, failed: true }]);
@@ -79,14 +76,14 @@ export function AIChat({ open, onClose, user, onLogin }: { open: boolean; onClos
 
   return (
     <div className="overlay overlay-side" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <aside className="chat" role="dialog" aria-label="ШІ-асистент">
+      <aside className="chat" role="dialog" aria-label={t('chat.title')}>
         <header className="modal-bar">
           <h3>
-            <Sparkles size={18} /> ШІ-асистент
+            <Sparkles size={18} /> {t('chat.title')}
           </h3>
           <div className="row-end">
             {user && messages.length > 0 && (
-              <button className="icon-btn" onClick={() => setMessages([])} title="Очистити розмову" aria-label="Очистити розмову">
+              <button className="icon-btn" onClick={() => setMessages([])} title={t('chat.clear')} aria-label={t('chat.clear')}>
                 <Trash2 size={17} />
               </button>
             )}
@@ -97,10 +94,10 @@ export function AIChat({ open, onClose, user, onLogin }: { open: boolean; onClos
         {!user ? (
           <div className="chat-gate">
             <Sparkles size={34} />
-            <h3>Увійдіть, щоб поставити запитання</h3>
-            <p className="muted">Асистент знає механіки гри і допоможе зібрати власну складність. Розмова зберігається лише у вашому браузері.</p>
+            <h3>{t('chat.gateTitle')}</h3>
+            <p className="muted">{t('chat.gateText')}</p>
             <button className="btn btn-uv" onClick={onLogin}>
-              <LogIn size={16} /> Увійти через Google
+              <LogIn size={16} /> {t('auth.loginGoogle')}
             </button>
           </div>
         ) : (
@@ -108,10 +105,10 @@ export function AIChat({ open, onClose, user, onLogin }: { open: boolean; onClos
             <div className="chat-log">
               {messages.length === 0 && (
                 <div className="chat-intro">
-                  <p>Запитайте про привидів, виживання або кастомну складність. Наприклад:</p>
+                  <p>{t('chat.intro')}</p>
                   {IDEAS.map((idea) => (
-                    <button key={idea} className="chat-idea" onClick={() => send(idea)}>
-                      {idea}
+                    <button key={idea} className="chat-idea" onClick={() => send(t(idea))}>
+                      {t(idea)}
                     </button>
                   ))}
                 </div>
@@ -122,7 +119,7 @@ export function AIChat({ open, onClose, user, onLogin }: { open: boolean; onClos
                 </div>
               ))}
               {busy && (
-                <div className="bubble bubble-assistant is-typing" aria-label="Асистент друкує">
+                <div className="bubble bubble-assistant is-typing" aria-label={t('chat.typing')}>
                   <i /><i /><i />
                 </div>
               )}
@@ -141,7 +138,7 @@ export function AIChat({ open, onClose, user, onLogin }: { open: boolean; onClos
                 rows={2}
                 value={input}
                 maxLength={4000}
-                placeholder="Ваше запитання…"
+                placeholder={t('chat.placeholder')}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -150,7 +147,7 @@ export function AIChat({ open, onClose, user, onLogin }: { open: boolean; onClos
                   }
                 }}
               />
-              <button className="btn btn-uv" type="submit" disabled={busy || !input.trim()} aria-label="Надіслати">
+              <button className="btn btn-uv" type="submit" disabled={busy || !input.trim()} aria-label={t('chat.send')}>
                 <Send size={17} />
               </button>
             </form>
